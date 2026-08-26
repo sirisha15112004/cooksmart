@@ -177,18 +177,27 @@ jobs:
       - name: Generate All Master Excel Files
         run: |
           pip install openpyxl requests
+          python generate_master_test_report.py
           python selenium-tests/generate_test_report.py
           python appium-tests/generate_test_report.py
           python load-tests/run_load_test.py
           python "Vulnerability Test Results/generate_security_reports.py"
           mkdir -p All-CookSmart-Excel-Test-Reports
+          cp CookSmart_Master_All_TestCases_Report.xlsx All-CookSmart-Excel-Test-Reports/
           cp selenium-tests/selenium_test_cases_report.xlsx All-CookSmart-Excel-Test-Reports/
           cp appium-tests/appium_test_cases_report.xlsx All-CookSmart-Excel-Test-Reports/
           cp load-tests/load_test_report.xlsx All-CookSmart-Excel-Test-Reports/
           cp "Vulnerability Test Results/endpoint-inventory.xlsx" All-CookSmart-Excel-Test-Reports/
           cp "Vulnerability Test Results/findings.xlsx" All-CookSmart-Excel-Test-Reports/
 
-      - name: Upload Complete Test Reports Bundle (All 4 Suites)
+      - name: Upload Single Master Unified Test Report (All 1,040+ Cases in One Excel)
+        uses: actions/upload-artifact@v4
+        with:
+          name: CookSmart-Master-All-TestCases-Single-Excel-Report
+          path: CookSmart_Master_All_TestCases_Report.xlsx
+          retention-days: 60
+
+      - name: Upload Complete Test Reports Bundle (All Excel Files)
         uses: actions/upload-artifact@v4
         with:
           name: ALL-CookSmart-Test-Excel-Reports-Bundle
