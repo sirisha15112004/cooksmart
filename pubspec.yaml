@@ -1,0 +1,28 @@
+name: cooksmart_app
+description: CookSmart recipe and meal planner app.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_animate: ^4.1.0
+  google_fonts: ^6.2.1
+  http: ^1.2.2
+  image_picker: ^1.0.8
+  mime: ^1.0.0
+  shared_preferences: ^2.3.1
+  table_calendar: ^3.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
