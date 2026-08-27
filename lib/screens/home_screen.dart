@@ -203,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _OptionCard(
             emoji: '📷',
             title: 'Scan\nIngredients',
-            subtitle: 'Scan with photo',
+            subtitle: 'Real-time camera',
             color: const Color(0xFFFFF3E0),
             borderColor: AppTheme.accent.withValues(alpha: 0.4),
             onTap: () => Navigator.push(

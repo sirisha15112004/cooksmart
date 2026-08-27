@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import '../../services/camera_feed/camera_feed.dart';
 import '../../services/recipe_service.dart';
 import '../../theme/app_theme.dart';
 import '../pantry/pantry_screen.dart';
@@ -12,25 +13,33 @@ import '../recipes/recipe_results_screen.dart';
 
 class ScanIngredientsScreen extends StatefulWidget {
   final bool autoOpenCamera;
-  const ScanIngredientsScreen({super.key, this.autoOpenCamera = true});
+  const ScanIngredientsScreen({super.key, this.autoOpenCamera = false});
 
   @override
-  State<ScanIngredientsScreen> createState() =>
-      _ScanIngredientsScreenState();
+  State<ScanIngredientsScreen> createState() => _ScanIngredientsScreenState();
 }
 
 class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
-  Uint8List? _imageBytes;
-  String? _imageName;
-  List<String> _scannedIngredients = [];
+  // Live Camera
+  late final LiveCameraFeed _cameraFeed;
+  bool _isCameraActive = false;
+  bool _isCameraStarting = false;
+
+  // Image Upload / Gallery
+  Uint8List? _uploadedImageBytes;
+  String? _uploadedImageName;
+
+  // Detection State
+  List<String> _detectedIngredients = [];
   final Set<String> _selectedIngredients = {};
-  bool _isScanning = false;
-  bool _isScanned = false;
+  bool _isAnalyzing = false;
+  bool _hasAnalyzed = false;
+
   int _servings = 2;
   String _spiceLevel = 'Medium';
   String _dietType = 'None';
   final _manualAddController = TextEditingController();
-  final _service = RecipeService();
+  final _recipeService = RecipeService();
 
   final List<Map<String, String>> _dietOptions = [
     {'label': 'None', 'emoji': '🍽️'},
@@ -44,43 +53,49 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   @override
   void initState() {
     super.initState();
+    _cameraFeed = getLiveCameraFeed();
     if (widget.autoOpenCamera) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _pickImage(ImageSource.camera);
+        _startLiveCamera();
       });
     }
   }
 
   @override
   void dispose() {
+    _cameraFeed.stopCamera();
     _manualAddController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 1200,
-      );
-      if (picked == null) return;
+  // ─────────────────────────────────────────
+  // REAL-TIME CAMERA WORKFLOW
+  // ─────────────────────────────────────────
 
-      final bytes = await picked.readAsBytes();
+  Future<void> _startLiveCamera() async {
+    if (_isCameraActive || _isCameraStarting) return;
+
+    setState(() {
+      _isCameraStarting = true;
+      _uploadedImageBytes = null;
+      _uploadedImageName = null;
+      _hasAnalyzed = false;
+    });
+
+    final success = await _cameraFeed.startCamera(
+      onFrameCaptured: _processLiveFrame,
+    );
+
+    if (mounted) {
       setState(() {
-        _imageBytes = bytes;
-        _imageName = picked.name;
-        _isScanned = false;
-        _scannedIngredients = [];
-        _selectedIngredients.clear();
+        _isCameraStarting = false;
+        _isCameraActive = success;
       });
-      await _scanImage();
-    } catch (e) {
-      if (mounted) {
+
+      if (!success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to access camera/image: $e'),
+          const SnackBar(
+            content: Text('Could not access camera. Please check camera permissions.'),
             backgroundColor: AppTheme.errorColor,
           ),
         );
@@ -88,38 +103,105 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     }
   }
 
-  Future<void> _scanImage() async {
-    if (_imageBytes == null) return;
-    setState(() => _isScanning = true);
-    try {
-      final ingredients = await _service.scanIngredientsFromImageBytes(
-        _imageBytes!,
-        _imageName,
-      );
+  void _stopLiveCamera() {
+    _cameraFeed.stopCamera();
+    if (mounted) {
       setState(() {
-        _scannedIngredients = ingredients;
-        _selectedIngredients.addAll(ingredients);
-        _isScanned = true;
+        _isCameraActive = false;
       });
-      // Save scan to backend if user is logged in
-      final prefs = await SharedPreferences.getInstance();
-      final uid = prefs.getInt('userId') ?? 0;
-      if (uid > 0 && ingredients.isNotEmpty) {
-        ApiService.saveScan(uid, ingredients);
+    }
+  }
+
+  Future<void> _processLiveFrame(Uint8List frameBytes) async {
+    if (_isAnalyzing || !_isCameraActive) return;
+    _isAnalyzing = true;
+
+    try {
+      final results = await _recipeService.scanIngredientsFromImageBytes(
+        frameBytes,
+        'live_camera_frame.jpg',
+      );
+
+      if (mounted && _isCameraActive && results.isNotEmpty) {
+        setState(() {
+          for (final item in results) {
+            if (!_detectedIngredients.contains(item)) {
+              _detectedIngredients.add(item);
+              _selectedIngredients.add(item);
+            }
+          }
+          _hasAnalyzed = true;
+        });
+      }
+    } catch (_) {
+    } finally {
+      _isAnalyzing = false;
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // GALLERY / IMAGE UPLOAD WORKFLOW
+  // ─────────────────────────────────────────
+
+  Future<void> _pickFromGallery() async {
+    _stopLiveCamera();
+
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
+      if (picked == null) return;
+
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _uploadedImageBytes = bytes;
+        _uploadedImageName = picked.name;
+        _isCameraActive = false;
+        _detectedIngredients = [];
+        _selectedIngredients.clear();
+        _hasAnalyzed = false;
+        _isAnalyzing = true;
+      });
+
+      final results = await _recipeService.scanIngredientsFromImageBytes(
+        bytes,
+        picked.name,
+      );
+
+      if (mounted) {
+        setState(() {
+          _detectedIngredients = results;
+          _selectedIngredients.addAll(results);
+          _hasAnalyzed = true;
+          _isAnalyzing = false;
+        });
+
+        // Save scan to backend if logged in
+        final prefs = await SharedPreferences.getInstance();
+        final uid = prefs.getInt('userId') ?? 0;
+        if (uid > 0 && results.isNotEmpty) {
+          ApiService.saveScan(uid, results);
+        }
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isAnalyzing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Scan note: $e'),
-            backgroundColor: AppTheme.primary,
+            content: Text('Failed to load image: $e'),
+            backgroundColor: AppTheme.errorColor,
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isScanning = false);
     }
   }
+
+  // ─────────────────────────────────────────
+  // ACTIONS
+  // ─────────────────────────────────────────
 
   void _toggleIngredient(String ing) {
     setState(() {
@@ -133,7 +215,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
 
   void _removeIngredient(String ing) {
     setState(() {
-      _scannedIngredients.remove(ing);
+      _detectedIngredients.remove(ing);
       _selectedIngredients.remove(ing);
     });
   }
@@ -142,9 +224,9 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     final text = _manualAddController.text.trim();
     if (text.isEmpty) return;
     final formatted = text[0].toUpperCase() + text.substring(1);
-    if (!_scannedIngredients.contains(formatted)) {
+    if (!_detectedIngredients.contains(formatted)) {
       setState(() {
-        _scannedIngredients.add(formatted);
+        _detectedIngredients.add(formatted);
         _selectedIngredients.add(formatted);
       });
     }
@@ -154,9 +236,14 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   Future<void> _addToPantry() async {
     final itemsToAdd = _selectedIngredients.isNotEmpty
         ? _selectedIngredients.toList()
-        : _scannedIngredients;
+        : _detectedIngredients;
 
-    if (itemsToAdd.isEmpty) return;
+    if (itemsToAdd.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No ingredients to add to pantry.')),
+      );
+      return;
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final existing = prefs.getStringList('pantry_ingredients') ?? [];
@@ -202,7 +289,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   void _findRecipes() {
     final activeIngredients = _selectedIngredients.isNotEmpty
         ? _selectedIngredients.toList()
-        : _scannedIngredients;
+        : _detectedIngredients;
 
     if (activeIngredients.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -224,170 +311,82 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     );
   }
 
-  void _resetScan() {
-    setState(() {
-      _imageBytes = null;
-      _imageName = null;
-      _scannedIngredients = [];
-      _selectedIngredients.clear();
-      _isScanned = false;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FBF9),
       appBar: AppBar(
         title: const Text('Scan Ingredients'),
-        actions: [
-          if (_imageBytes != null)
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Scan Again',
-              onPressed: _resetScan,
-            ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildImageCard(),
+            // Top action buttons: [ Gallery ] and [ Scan with Ingredients ]
+            _buildTopActionBar(),
             const SizedBox(height: 16),
-            _buildCaptureButtons(),
-            const SizedBox(height: 20),
-            if (_isScanning) _buildScanningProgress(),
-            if (_isScanned) _buildScanResults(),
+
+            // Live Camera Viewfinder or Image Upload View
+            if (_isCameraActive || _isCameraStarting)
+              _buildLiveCameraView()
+            else if (_uploadedImageBytes != null)
+              _buildUploadedImageView(),
+
+            // Detection Progress Indicator
+            if (_isAnalyzing && !_isCameraActive) ...[
+              const SizedBox(height: 16),
+              _buildAnalyzingCard(),
+            ],
+
+            // Scan Results & Detected Items
+            if (_hasAnalyzed || _detectedIngredients.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _buildDetectedResults(),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildImageCard() {
-    return GestureDetector(
-      onTap: _imageBytes == null ? () => _pickImage(ImageSource.camera) : null,
-      child: Container(
-        width: double.infinity,
-        constraints: const BoxConstraints(minHeight: 220, maxHeight: 380),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
-          borderRadius: BorderRadius.circular(24),
-          border: _imageBytes == null
-              ? Border.all(
-                  color: AppTheme.primary.withValues(alpha: 0.6), width: 2)
-              : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (_imageBytes != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.memory(
-                  _imageBytes!,
-                  fit: BoxFit.contain,
-                  width: double.infinity,
-                  alignment: Alignment.center,
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 76,
-                      height: 76,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.25),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppTheme.primary, width: 2),
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.camera_alt_rounded,
-                            color: Colors.white, size: 38),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Tap to Open Camera & Scan',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Point camera at your ingredients to detect them automatically',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            if (_imageBytes != null)
-              Positioned(
-                top: 12,
-                right: 12,
-                child: GestureDetector(
-                  onTap: _resetScan,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Colors.black54,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close_rounded,
-                        color: Colors.white, size: 18),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  // ─────────────────────────────────────────
+  // UI COMPONENTS
+  // ─────────────────────────────────────────
 
-  Widget _buildCaptureButtons() {
+  Widget _buildTopActionBar() {
     return Row(
       children: [
+        // Gallery Button
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () => _pickImage(ImageSource.gallery),
+            onPressed: _pickFromGallery,
             icon: const Icon(Icons.photo_library_rounded, size: 20),
-            label: const Text('Upload Image', style: TextStyle(fontWeight: FontWeight.bold)),
+            label: const Text('Gallery', style: TextStyle(fontWeight: FontWeight.bold)),
             style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 16),
               foregroundColor: AppTheme.primary,
               side: const BorderSide(color: AppTheme.primary, width: 1.5),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
+        // Scan with Ingredients (Live Camera) Button
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () => _pickImage(ImageSource.camera),
-            icon: const Icon(Icons.camera_alt_rounded, size: 20),
-            label: const Text('Scan with Camera', style: TextStyle(fontWeight: FontWeight.bold)),
+            onPressed: _isCameraActive ? _stopLiveCamera : _startLiveCamera,
+            icon: Icon(
+              _isCameraActive ? Icons.stop_circle_rounded : Icons.camera_alt_rounded,
+              size: 20,
+            ),
+            label: Text(
+              _isCameraActive ? 'Stop Camera' : 'Scan with Ingredients',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              backgroundColor: AppTheme.primary,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: _isCameraActive ? Colors.redAccent : AppTheme.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               elevation: 0,
@@ -398,9 +397,188 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     );
   }
 
-  Widget _buildScanningProgress() {
+  Widget _buildLiveCameraView() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      height: 360,
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Live WebRTC HTML Video / Camera Preview
+            if (_isCameraActive)
+              Positioned.fill(child: _cameraFeed.buildPreview())
+            else
+              const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+
+            // Live Camera Top Indicator
+            Positioned(
+              top: 14,
+              left: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'LIVE CAMERA',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Live Bounding Box Overlay for Detected Ingredients
+            if (_detectedIngredients.isNotEmpty)
+              Positioned(
+                bottom: 20,
+                left: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.greenAccent, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Detected: ${_detectedIngredients.join(', ')}',
+                          style: GoogleFonts.dmSans(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ).animate().fadeIn(),
+              ),
+
+            // Center Viewfinder Target Grid
+            Center(
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Center(
+                  child: Text(
+                    'Point at ingredients',
+                    style: GoogleFonts.dmSans(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn();
+  }
+
+  Widget _buildUploadedImageView() {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 220, maxHeight: 380),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Image.memory(
+              _uploadedImageBytes!,
+              fit: BoxFit.contain,
+              width: double.infinity,
+              alignment: Alignment.center,
+            ),
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: GestureDetector(
+              onTap: () => setState(() {
+                _uploadedImageBytes = null;
+                _detectedIngredients = [];
+                _selectedIngredients.clear();
+                _hasAnalyzed = false;
+              }),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyzingCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -412,11 +590,11 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
             backgroundColor: Color(0xFFE8F5E9),
             valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
-            'Analyzing visible food items...',
+            'Analyzing visible ingredients...',
             style: GoogleFonts.dmSans(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppTheme.textPrimary,
             ),
@@ -426,8 +604,8 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     );
   }
 
-  Widget _buildScanResults() {
-    if (_scannedIngredients.isEmpty) {
+  Widget _buildDetectedResults() {
+    if (_detectedIngredients.isEmpty && _hasAnalyzed) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
@@ -439,14 +617,14 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
         child: Column(
           children: [
             Container(
-              width: 60,
-              height: 60,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
                 color: Colors.orange.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Center(
-                child: Icon(Icons.search_off_rounded, color: Colors.orange, size: 30),
+                child: Icon(Icons.search_off_rounded, color: Colors.orange, size: 28),
               ),
             ),
             const SizedBox(height: 12),
@@ -466,9 +644,9 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: () => _pickImage(ImageSource.camera),
+              onPressed: _startLiveCamera,
               icon: const Icon(Icons.camera_alt_rounded, size: 18),
-              label: const Text('Scan Again'),
+              label: const Text('Scan with Camera'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -483,7 +661,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Detected header
+        // Detected Summary Header
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
@@ -497,7 +675,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '${_scannedIngredients.length} Ingredient${_scannedIngredients.length != 1 ? 's' : ''} Detected',
+                  '${_detectedIngredients.length} Ingredient${_detectedIngredients.length != 1 ? 's' : ''} Detected',
                   style: GoogleFonts.dmSans(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -505,16 +683,13 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
                   ),
                 ),
               ),
-              TextButton(
-                onPressed: () => _pickImage(ImageSource.camera),
-                child: const Text('Rescan', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
             ],
           ),
         ),
         const SizedBox(height: 14),
         Text('Detected Ingredients', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
+
         // Interactive Checklist of Detected Ingredients
         Container(
           decoration: BoxDecoration(
@@ -523,7 +698,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
             border: Border.all(color: AppTheme.divider),
           ),
           child: Column(
-            children: _scannedIngredients.map((ing) {
+            children: _detectedIngredients.map((ing) {
               final isChecked = _selectedIngredients.contains(ing);
               return ListTile(
                 dense: true,
@@ -552,6 +727,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
           ),
         ),
         const SizedBox(height: 14),
+
         // Manual Add Field
         Container(
           decoration: BoxDecoration(
@@ -585,12 +761,14 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
           ),
         ),
         const SizedBox(height: 20),
+
         // Recipe Preferences & Options
         Text('Recipe Preferences', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
         _buildPreferencesCard(),
         const SizedBox(height: 24),
-        // Action Buttons: Add to Pantry and Find Recipes
+
+        // Action Buttons: [ Add to Pantry ] and [ Find Recipes ]
         Row(
           children: [
             Expanded(
