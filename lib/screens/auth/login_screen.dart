@@ -170,8 +170,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ).animate().fadeIn(delay: 500.ms),
                       const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text("Don't have an account? ",
                               style: Theme.of(context).textTheme.bodyMedium),
