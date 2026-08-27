@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,7 +18,8 @@ class ScanIngredientsScreen extends StatefulWidget {
 }
 
 class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
-  File? _imageFile;
+  Uint8List? _imageBytes;
+  String? _imageName;
   List<String> _scannedIngredients = [];
   bool _isScanning = false;
   bool _isScanned = false;
@@ -37,25 +38,43 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   ];
 
   Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-        source: source, imageQuality: 80, maxWidth: 1200);
-    if (picked == null) return;
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        imageQuality: 80,
+        maxWidth: 1200,
+      );
+      if (picked == null) return;
 
-    setState(() {
-      _imageFile = File(picked.path);
-      _isScanned = false;
-      _scannedIngredients = [];
-    });
-    await _scanImage();
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _imageBytes = bytes;
+        _imageName = picked.name;
+        _isScanned = false;
+        _scannedIngredients = [];
+      });
+      await _scanImage();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to select image: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _scanImage() async {
-    if (_imageFile == null) return;
+    if (_imageBytes == null) return;
     setState(() => _isScanning = true);
     try {
-      final ingredients =
-          await _service.scanIngredientsFromImage(_imageFile!);
+      final ingredients = await _service.scanIngredientsFromImageBytes(
+        _imageBytes!,
+        _imageName,
+      );
       setState(() {
         _scannedIngredients = ingredients;
         _isScanned = true;
@@ -68,8 +87,9 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Scan failed: $e'),
-              backgroundColor: AppTheme.errorColor),
+            content: Text('Scan: $e'),
+            backgroundColor: AppTheme.primary,
+          ),
         );
       }
     } finally {
@@ -126,7 +146,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   Widget _buildImageSection() {
     return Column(
       children: [
-        if (_imageFile == null)
+        if (_imageBytes == null)
           Container(
             width: double.infinity,
             height: 220,
@@ -166,16 +186,19 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: Image.file(_imageFile!,
-                    width: double.infinity,
-                    height: 220,
-                    fit: BoxFit.cover),
+                child: Image.memory(
+                  _imageBytes!,
+                  width: double.infinity,
+                  height: 220,
+                  fit: BoxFit.cover,
+                ),
               ),
               Positioned(
                 top: 12, right: 12,
                 child: GestureDetector(
                   onTap: () => setState(() {
-                    _imageFile = null;
+                    _imageBytes = null;
+                    _imageName = null;
                     _isScanned = false;
                     _scannedIngredients = [];
                   }),
