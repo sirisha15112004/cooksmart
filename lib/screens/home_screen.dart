@@ -570,7 +570,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final isFav = _favoriteRecipeIds.contains(recipeKey);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      height: 250,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.cardBg,
         borderRadius: AppTheme.radius,
@@ -578,144 +579,167 @@ class _HomeScreenState extends State<HomeScreen> {
         boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row: Thumbnail / Cuisine Badge, Title & Favorite Button
-          Row(
+          // Top Content
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Recipe Image / Visual Emblem
+              // Header Row: Recipe Photo, Title & Favorite Button
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Accurate Recipe Photo
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      color: const Color(0xFFF3F4F6),
+                      child: Image.network(
+                        _getRecipeImageUrl(recipe),
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Center(
+                          child: Text(
+                            _getCuisineEmoji(recipe.cuisine),
+                            style: const TextStyle(fontSize: 22),
+                          ),
+                        ),
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            width: 48,
+                            height: 48,
+                            color: const Color(0xFFF3F4F6),
+                            child: const Center(
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppTheme.primary,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+
+                  // Title and Description
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          recipe.title,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                            letterSpacing: -0.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          recipe.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: AppTheme.textSecondary,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Favorite Button
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: Icon(
+                      isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      color: isFav ? AppTheme.errorColor : AppTheme.textTertiary,
+                      size: 20,
+                    ),
+                    onPressed: () => _toggleFavorite(recipe),
+                    tooltip: isFav ? 'Remove from favorites' : 'Save to favorites',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Matching Pantry Ingredients Section
               Container(
-                width: 48,
-                height: 48,
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface,
-                  borderRadius: BorderRadius.circular(10),
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppTheme.divider),
                 ),
-                child: Center(
-                  child: Text(
-                    _getCuisineEmoji(recipe.cuisine),
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-
-              // Title and Description
-              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF16A34A)),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            'Uses ${matched.length} pantry ingredients',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF166534),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
                     Text(
-                      recipe.title,
+                      matched.isNotEmpty
+                          ? matched.map((m) => '✓ $m').join('  ')
+                          : 'No pantry ingredients matched',
                       style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                        letterSpacing: -0.2,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF374151),
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (recipe.description.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        recipe.description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: AppTheme.textSecondary,
-                          height: 1.3,
-                        ),
+                    const SizedBox(height: 3),
+                    Text(
+                      missing.isNotEmpty
+                          ? 'Missing: ${missing.join(', ')}'
+                          : 'All ingredients ready in pantry!',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: const Color(0xFF6B7280),
                       ),
-                    ],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
-              ),
-
-              // Favorite Button
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: Icon(
-                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: isFav ? AppTheme.errorColor : AppTheme.textTertiary,
-                  size: 20,
-                ),
-                onPressed: () => _toggleFavorite(recipe),
-                tooltip: isFav ? 'Remove from favorites' : 'Save to favorites',
               ),
             ],
           ),
-          const SizedBox(height: 12),
 
-          // Matching Pantry Ingredients Section
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.divider),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF16A34A)),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        'Uses ${matched.length} pantry ingredients',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF166534),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                if (matched.isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Wrap(
-                    spacing: 5,
-                    runSpacing: 3,
-                    children: matched.take(3).map((ing) {
-                      return Text(
-                        '✓ $ing',
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF374151),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-                if (missing.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'Missing: ${missing.take(2).map((m) => m).join(', ')}${missing.length > 2 ? ' +${missing.length - 2} more' : ''}',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: const Color(0xFF6B7280),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Nutrition Info & View Recipe Action
+          // Pinned Bottom Row: Calories, cooking time, View Recipe Action
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -763,6 +787,41 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  String _getRecipeImageUrl(Recipe recipe) {
+    final title = recipe.title.toLowerCase();
+    if (title.contains('aloo gobi') || (title.contains('gobi') && title.contains('potato'))) {
+      return 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=300&auto=format&fit=crop&q=80';
+    }
+    if (title.contains('masala') && (title.contains('potato') || title.contains('roasted'))) {
+      return 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=300&auto=format&fit=crop&q=80';
+    }
+    if (title.contains('herb') || (title.contains('garlic') && title.contains('potato')) || title.contains('sautéed') || title.contains('sauteed')) {
+      return 'https://images.unsplash.com/photo-1596797038530-2c107229654b?w=300&auto=format&fit=crop&q=80';
+    }
+    if (title.contains('omelette') || title.contains('egg')) {
+      return 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=300&auto=format&fit=crop&q=80';
+    }
+    if (title.contains('potato') || title.contains('aloo')) {
+      return 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&auto=format&fit=crop&q=80';
+    }
+    if (title.contains('curry') || title.contains('tikka') || title.contains('paneer')) {
+      return 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=300&auto=format&fit=crop&q=80';
+    }
+    if (title.contains('rice') || title.contains('biryani') || title.contains('pulao')) {
+      return 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=300&auto=format&fit=crop&q=80';
+    }
+    if (title.contains('pasta') || title.contains('spaghetti')) {
+      return 'https://images.unsplash.com/photo-1621996346565-e3d5d6281084?w=300&auto=format&fit=crop&q=80';
+    }
+    if (title.contains('salad')) {
+      return 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300&auto=format&fit=crop&q=80';
+    }
+    if (title.contains('soup')) {
+      return 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=300&auto=format&fit=crop&q=80';
+    }
+    return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&auto=format&fit=crop&q=80';
   }
 
   String _getCuisineEmoji(String cuisine) {
