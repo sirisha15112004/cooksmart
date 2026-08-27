@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cooksmart_app/main.dart';
 import 'package:cooksmart_app/models/recipe_model.dart';
+import 'package:cooksmart_app/models/shopping_item.dart';
 
 /// Dynamic Data Generators for CookSmart Test Suite
 class DynamicTestDataFactory {
@@ -186,6 +187,71 @@ void main() {
       expect(find.byType(RecipeApp), findsOneWidget);
       await tester.pumpAndSettle(const Duration(seconds: 4));
       expect(find.byType(RecipeApp), findsOneWidget);
+    });
+  });
+
+  group('3. Pantry & Shopping List Feature Tests', () {
+    test('ShoppingItem model serialization, deserialization, and toggle', () {
+      final item = ShoppingItem(
+        id: 'shop_001',
+        name: 'Tomato',
+        isCompleted: false,
+      );
+
+      expect(item.name, 'Tomato');
+      expect(item.isCompleted, isFalse);
+
+      item.isCompleted = true;
+      final json = item.toJson();
+      expect(json['id'], 'shop_001');
+      expect(json['name'], 'Tomato');
+      expect(json['isCompleted'], isTrue);
+
+      final fromJson = ShoppingItem.fromJson(json);
+      expect(fromJson.name, 'Tomato');
+      expect(fromJson.isCompleted, isTrue);
+    });
+
+    testWidgets('Shopping List item renders with red strikethrough when checked', (WidgetTester tester) async {
+      final checkedItem = ShoppingItem(
+        id: 'shop_002',
+        name: 'Milk',
+        isCompleted: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ListTile(
+              leading: Checkbox(
+                value: checkedItem.isCompleted,
+                onChanged: (_) {},
+              ),
+              title: Text(
+                checkedItem.name,
+                style: TextStyle(
+                  decoration: checkedItem.isCompleted
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
+                  decorationColor: Colors.red,
+                ),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete_outline_rounded),
+                onPressed: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Milk'), findsOneWidget);
+      expect(find.byType(Checkbox), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline_rounded), findsOneWidget);
+
+      final textWidget = tester.widget<Text>(find.text('Milk'));
+      expect(textWidget.style?.decoration, TextDecoration.lineThrough);
+      expect(textWidget.style?.decorationColor, Colors.red);
     });
   });
 }
