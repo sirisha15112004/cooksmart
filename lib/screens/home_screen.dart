@@ -38,7 +38,28 @@ class _HomeScreenState extends State<HomeScreen> {
   int _shoppingItemsCount = 0;
   bool _isLoadingData = true;
 
-  final TextEditingController _quickSearchController = TextEditingController();
+  // Enter Ingredients & Recipe Preferences state on Home
+  final TextEditingController _ingredientInputController = TextEditingController();
+  final List<String> _enteredIngredients = [];
+  int _servings = 2;
+  String _spiceLevel = 'Medium';
+  String _dietType = 'None';
+
+  final List<String> _spiceLevels = ['Mild', 'Medium', 'Spicy', 'Extra Spicy'];
+  final List<String> _dietOptions = [
+    'None',
+    'Vegetarian',
+    'Vegan',
+    'High-Protein',
+    'Diabetic-Friendly',
+    'Weight-Loss',
+  ];
+
+  static const List<String> _commonStaples = [
+    'Onion', 'Tomato', 'Garlic', 'Potato', 'Rice', 'Eggs',
+    'Chicken', 'Milk', 'Butter', 'Spinach', 'Paneer', 'Pasta', 'Cheese',
+  ];
+
   final RecipeService _recipeService = RecipeService();
 
   @override
@@ -49,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _quickSearchController.dispose();
+    _ingredientInputController.dispose();
     super.dispose();
   }
 
@@ -110,28 +131,51 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _onQuickSearchSubmit() {
-    final text = _quickSearchController.text.trim();
-    if (text.isEmpty) return;
+  void _addEnteredIngredient(String raw) {
+    final name = raw.trim();
+    if (name.isEmpty) return;
 
-    final ingredients = text
-        .split(RegExp(r'[,+]'))
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+    final formatted = name.split(' ').map((w) {
+      if (w.isEmpty) return '';
+      return w[0].toUpperCase() + w.substring(1).toLowerCase();
+    }).join(' ');
 
-    if (ingredients.isNotEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => RecipeResultsScreen(
-            ingredients: ingredients,
-            servings: 2,
-            spiceLevel: 'Medium',
-          ),
+    if (!_enteredIngredients.any((i) => i.toLowerCase() == formatted.toLowerCase())) {
+      setState(() {
+        _enteredIngredients.add(formatted);
+      });
+      _ingredientInputController.clear();
+    }
+  }
+
+  void _removeEnteredIngredient(String name) {
+    setState(() {
+      _enteredIngredients.remove(name);
+    });
+  }
+
+  void _onFindRecipesFromEntered() {
+    if (_enteredIngredients.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please add at least one ingredient to find recipes.'),
+          backgroundColor: AppTheme.textPrimary,
         ),
       );
+      return;
     }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RecipeResultsScreen(
+          ingredients: List.from(_enteredIngredients),
+          servings: _servings,
+          spiceLevel: _spiceLevel,
+          dietType: _dietType == 'None' ? null : _dietType,
+        ),
+      ),
+    );
   }
 
   @override
@@ -241,9 +285,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _navItem(0, 'Home', Icons.home_outlined),
+                    _navItem(3, 'Enter Ingredients', Icons.edit_note_rounded),
                     _navItem(1, 'Scan Ingredients', Icons.photo_camera_outlined),
                     _navItem(2, 'My Pantry', Icons.inventory_2_outlined),
-                    _navItem(3, 'Recipes', Icons.menu_book_outlined),
                     _navItem(4, 'Meal Planner', Icons.calendar_today_outlined),
                     _navItem(5, 'Shopping List', Icons.checklist_rounded),
                   ],
@@ -335,19 +379,19 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // 1. Full-Width Hero Section
           _buildHeroSection(isDesktop, isTablet),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
 
-          // 2. Kitchen Overview (4 Compact Stat Cards in 1 Row)
+          // 2. Full-Width Enter Ingredients & Preferences Section
+          _buildEnterIngredientsSection(isDesktop, isTablet),
+          const SizedBox(height: 28),
+
+          // 3. Kitchen Overview (4 Compact Stat Cards in 1 Row)
           _buildKitchenOverviewSection(isDesktop, isTablet),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
 
-          // 3. Recommended for You (100% Pantry-Matched Recipes)
+          // 4. Recommended for You (100% Pantry-Matched Recipes)
           _buildRecommendedRecipesSection(isDesktop, isTablet),
-          const SizedBox(height: 32),
-
-          // 4. Quick Action Pantry Banner
-          _buildQuickPantryBanner(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
         ],
       ),
     );
@@ -359,7 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHeroSection(bool isDesktop, bool isTablet) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isDesktop ? 36 : 24),
+      padding: EdgeInsets.all(isDesktop ? 32 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -392,20 +436,20 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Main Heading
           Text(
             'Cook more with what you already have.',
             style: GoogleFonts.playfairDisplay(
-              fontSize: isDesktop ? 34 : 26,
+              fontSize: isDesktop ? 32 : 24,
               fontWeight: FontWeight.w700,
               color: const Color(0xFF111827),
               letterSpacing: -0.6,
               height: 1.2,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
           // Description
           Text(
@@ -416,9 +460,99 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Full-Width Quick Search Box
+          // Action Buttons
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => _onNavTabChanged(1),
+                icon: const Icon(Icons.photo_camera_outlined, size: 16),
+                label: const Text('Scan Ingredients'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _onNavTabChanged(2),
+                icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                label: const Text('Manage My Pantry'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF111827),
+                  side: const BorderSide(color: Color(0xFFD1D5DB)),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 250.ms);
+  }
+
+  // -------------------------------------------------------------
+  // FULL-WIDTH ENTER INGREDIENTS & RECIPE PREFERENCES SECTION
+  // -------------------------------------------------------------
+  Widget _buildEnterIngredientsSection(bool isDesktop, bool isTablet) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isDesktop ? 28 : 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Enter Ingredients',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF111827),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Type your ingredients and set cooking preferences to discover recipes',
+                    style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B7280)),
+                  ),
+                ],
+              ),
+              if (_enteredIngredients.isNotEmpty)
+                TextButton(
+                  onPressed: () => setState(() => _enteredIngredients.clear()),
+                  child: Text(
+                    'Clear All',
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.errorColor),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          // Ingredient Input Bar
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
@@ -434,68 +568,275 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 Expanded(
                   child: TextField(
-                    controller: _quickSearchController,
+                    controller: _ingredientInputController,
                     style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF111827)),
                     decoration: const InputDecoration(
-                      hintText: 'Enter ingredients (e.g. Tomato, Rice, Egg)...',
+                      hintText: 'Type ingredient name (e.g. Tomato, Rice, Egg, Potato)...',
                       hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(vertical: 14),
                     ),
-                    onSubmitted: (_) => _onQuickSearchSubmit(),
+                    onSubmitted: _addEnteredIngredient,
                   ),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ElevatedButton(
-                    onPressed: _onQuickSearchSubmit,
+                    onPressed: () => _addEnteredIngredient(_ingredientInputController.text),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Find Recipes', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    child: const Text('Add', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
 
-          // Action Buttons
-          Wrap(
-            spacing: 12,
-            runSpacing: 10,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () => _onNavTabChanged(2),
-                icon: const Icon(Icons.inventory_2_outlined, size: 16),
-                label: const Text('Manage My Pantry'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          // Added Ingredients Chips
+          if (_enteredIngredients.isNotEmpty) ...[
+            Text(
+              'Selected Ingredients (${_enteredIngredients.length})',
+              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF374151)),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _enteredIngredients.map((ing) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        ing,
+                        style: GoogleFonts.inter(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () => _removeEnteredIngredient(ing),
+                        child: const Icon(Icons.close_rounded, size: 14, color: AppTheme.primary),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Quick Add Staples
+          Text(
+            'Quick Add Staples',
+            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _commonStaples.map((staple) {
+                final isAdded = _enteredIngredients.any((i) => i.toLowerCase() == staple.toLowerCase());
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ActionChip(
+                    label: Text(staple),
+                    backgroundColor: isAdded ? AppTheme.primary : const Color(0xFFF9FAFB),
+                    side: BorderSide(
+                      color: isAdded ? AppTheme.primary : const Color(0xFFE5E7EB),
+                      width: 1,
+                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    labelStyle: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: isAdded ? FontWeight.w600 : FontWeight.w400,
+                      color: isAdded ? Colors.white : const Color(0xFF374151),
+                    ),
+                    onPressed: () {
+                      if (isAdded) {
+                        _removeEnteredIngredient(staple);
+                      } else {
+                        _addEnteredIngredient(staple);
+                      }
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Recipe Preferences Card (Servings, Spice Level, Dietary Goal)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recipe Preferences',
+                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF111827)),
                 ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _onNavTabChanged(3),
-                icon: const Icon(Icons.menu_book_outlined, size: 18),
-                label: const Text('Explore Recipes'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF111827),
-                  side: const BorderSide(color: Color(0xFFD1D5DB)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                const SizedBox(height: 14),
+
+                // Controls Row: Servings & Spice Level
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 550;
+                    if (isWide) {
+                      return Row(
+                        children: [
+                          Expanded(child: _buildServingsControl()),
+                          const SizedBox(width: 24),
+                          Expanded(child: _buildSpiceLevelControl()),
+                        ],
+                      );
+                    } else {
+                      return Column(
+                        children: [
+                          _buildServingsControl(),
+                          const Divider(height: 20, color: Color(0xFFE5E7EB)),
+                          _buildSpiceLevelControl(),
+                        ],
+                      );
+                    }
+                  },
                 ),
+                const SizedBox(height: 16),
+
+                // Dietary Goal
+                Text(
+                  'Dietary Goal',
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF4B5563)),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _dietOptions.map((diet) {
+                      final isSel = _dietType == diet;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(diet),
+                          selected: isSel,
+                          selectedColor: AppTheme.primary,
+                          backgroundColor: Colors.white,
+                          side: BorderSide(
+                            color: isSel ? AppTheme.primary : const Color(0xFFE5E7EB),
+                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          labelStyle: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
+                            color: isSel ? Colors.white : const Color(0xFF374151),
+                          ),
+                          onSelected: (_) => setState(() => _dietType = diet),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Primary Find Recipes Action
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _onFindRecipesFromEntered,
+              icon: const Icon(Icons.restaurant_menu_rounded, size: 18),
+              label: const Text('Find Recipes with Selected Ingredients', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
               ),
-            ],
+            ),
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 300.ms);
+    );
+  }
+
+  Widget _buildServingsControl() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.people_outline_rounded, size: 18, color: Color(0xFF4B5563)),
+            const SizedBox(width: 8),
+            Text('Servings', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151))),
+          ],
+        ),
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.remove_circle_outline_rounded, size: 20, color: Color(0xFF6B7280)),
+              onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
+            ),
+            Text(
+              '$_servings',
+              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF111827)),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: Color(0xFF6B7280)),
+              onPressed: _servings < 10 ? () => setState(() => _servings++) : null,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSpiceLevelControl() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.local_fire_department_outlined, size: 18, color: Color(0xFF4B5563)),
+            const SizedBox(width: 8),
+            Text('Spice Level', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151))),
+          ],
+        ),
+        DropdownButton<String>(
+          value: _spiceLevel,
+          underline: const SizedBox(),
+          style: GoogleFonts.inter(
+            color: AppTheme.primary,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+          items: _spiceLevels.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+          onChanged: (v) => setState(() => _spiceLevel = v!),
+        ),
+      ],
+    );
   }
 
   // -------------------------------------------------------------
@@ -936,75 +1277,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // -------------------------------------------------------------
-  // QUICK PANTRY & MEAL PLANNER ACTION BANNER (Full Width)
-  // -------------------------------------------------------------
-  Widget _buildQuickPantryBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x04000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Center(
-              child: Icon(Icons.auto_stories_outlined, color: AppTheme.primary, size: 24),
-            ),
-          ),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Plan Your Weekly Meals',
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Organize breakfast, lunch, and dinner with automatic shopping list generation.',
-                  style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B7280)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          ElevatedButton(
-            onPressed: () => _onNavTabChanged(4),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Open Meal Planner', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // -------------------------------------------------------------
   // MOBILE BOTTOM NAVIGATION (Only for narrow mobile screens)
   // -------------------------------------------------------------
   Widget _buildMobileBottomNav() {
@@ -1030,6 +1302,11 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.edit_note_rounded, size: 20),
+            activeIcon: Icon(Icons.edit_note_rounded, size: 20),
+            label: 'Enter',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.photo_camera_outlined, size: 20),
             activeIcon: Icon(Icons.photo_camera_rounded, size: 20),
             label: 'Scan',
@@ -1038,11 +1315,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.inventory_2_outlined, size: 20),
             activeIcon: Icon(Icons.inventory_2_rounded, size: 20),
             label: 'Pantry',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_outlined, size: 20),
-            activeIcon: Icon(Icons.menu_book_rounded, size: 20),
-            label: 'Recipes',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today_outlined, size: 20),
