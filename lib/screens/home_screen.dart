@@ -40,24 +40,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Enter Ingredients & Recipe Preferences state on Home
   final TextEditingController _ingredientInputController = TextEditingController();
-  final List<String> _enteredIngredients = [];
+  final List<String> _enteredIngredients = ['Broccoli', 'Carrot', 'Bell Pepper', 'Tomato'];
+  final Set<String> _selectedIngredients = {'Broccoli', 'Carrot', 'Bell Pepper', 'Tomato'};
   int _servings = 2;
   String _spiceLevel = 'Medium';
   String _dietType = 'None';
 
   final List<String> _spiceLevels = ['Mild', 'Medium', 'Spicy', 'Extra Spicy'];
-  final List<String> _dietOptions = [
-    'None',
-    'Vegetarian',
-    'Vegan',
-    'High-Protein',
-    'Diabetic-Friendly',
-    'Weight-Loss',
+  final List<Map<String, String>> _dietOptions = [
+    {'name': 'None', 'label': 'None', 'emoji': ''},
+    {'name': 'Vegetarian', 'label': 'Vegetarian', 'emoji': '🥦 '},
+    {'name': 'Vegan', 'label': 'Vegan', 'emoji': '🌱 '},
+    {'name': 'High-Protein', 'label': 'High-Protein', 'emoji': '💪 '},
+    {'name': 'Diabetic-Friendly', 'label': 'Diabetic-Friendly', 'emoji': '🩺 '},
+    {'name': 'Weight-Loss', 'label': 'Weight-Loss', 'emoji': '⚖️ '},
   ];
 
   static const List<String> _commonStaples = [
     'Onion', 'Tomato', 'Garlic', 'Potato', 'Rice', 'Eggs',
-    'Chicken', 'Milk', 'Butter', 'Spinach', 'Paneer', 'Pasta', 'Cheese',
+    'Chicken', 'Milk', 'Butter', 'Spinach', 'Paneer', 'Pasta',
+    'Cheese', 'Carrot', 'Bell Pepper', 'Broccoli', 'Cucumber', 'Cauliflower',
   ];
 
   final RecipeService _recipeService = RecipeService();
@@ -143,6 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_enteredIngredients.any((i) => i.toLowerCase() == formatted.toLowerCase())) {
       setState(() {
         _enteredIngredients.add(formatted);
+        _selectedIngredients.add(formatted);
       });
       _ingredientInputController.clear();
     }
@@ -151,14 +154,61 @@ class _HomeScreenState extends State<HomeScreen> {
   void _removeEnteredIngredient(String name) {
     setState(() {
       _enteredIngredients.remove(name);
+      _selectedIngredients.remove(name);
     });
   }
 
+  void _toggleSelectedIngredient(String name) {
+    setState(() {
+      if (_selectedIngredients.contains(name)) {
+        _selectedIngredients.remove(name);
+      } else {
+        _selectedIngredients.add(name);
+      }
+    });
+  }
+
+  Future<void> _addToPantryFromEntered() async {
+    final itemsToAdd = _selectedIngredients.isNotEmpty ? _selectedIngredients.toList() : _enteredIngredients;
+    if (itemsToAdd.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getStringList('pantry_ingredients') ?? [];
+    int addedCount = 0;
+
+    for (final item in itemsToAdd) {
+      if (!existing.any((e) => e.toLowerCase() == item.toLowerCase())) {
+        existing.insert(0, item);
+        addedCount++;
+      }
+    }
+
+    await prefs.setStringList('pantry_ingredients', existing);
+    _loadKitchenData();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          addedCount > 0
+              ? 'Added $addedCount item${addedCount != 1 ? 's' : ''} to My Pantry'
+              : 'Selected items are already in your Pantry',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
+        ),
+        backgroundColor: AppTheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
   void _onFindRecipesFromEntered() {
-    if (_enteredIngredients.isEmpty) {
+    final active = _selectedIngredients.isNotEmpty ? _selectedIngredients.toList() : _enteredIngredients;
+    if (active.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please add at least one ingredient to find recipes.'),
+          content: Text('Please select at least one ingredient to find recipes.'),
           backgroundColor: AppTheme.textPrimary,
         ),
       );
@@ -169,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => RecipeResultsScreen(
-          ingredients: List.from(_enteredIngredients),
+          ingredients: List.from(active),
           servings: _servings,
           spiceLevel: _spiceLevel,
           dietType: _dietType == 'None' ? null : _dietType,
@@ -381,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildHeroSection(isDesktop, isTablet),
           const SizedBox(height: 28),
 
-          // 2. Full-Width Enter Ingredients & Preferences Section
+          // 2. Full-Width Enter Ingredients, Suggestions, & Preferences Section
           _buildEnterIngredientsSection(isDesktop, isTablet),
           const SizedBox(height: 28),
 
@@ -497,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // -------------------------------------------------------------
-  // FULL-WIDTH ENTER INGREDIENTS & RECIPE PREFERENCES SECTION
+  // FULL-WIDTH INGREDIENTS, SUGGESTIONS & PREFERENCES SECTION
   // -------------------------------------------------------------
   Widget _buildEnterIngredientsSection(bool isDesktop, bool isTablet) {
     return Container(
@@ -518,45 +568,71 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Enter Ingredients',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF111827),
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Type your ingredients and set cooking preferences to discover recipes',
-                    style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B7280)),
-                  ),
-                ],
-              ),
-              if (_enteredIngredients.isNotEmpty)
-                TextButton(
-                  onPressed: () => setState(() => _enteredIngredients.clear()),
-                  child: Text(
-                    'Clear All',
-                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.errorColor),
-                  ),
-                ),
-            ],
+          // Section Title
+          Text(
+            'Detected Ingredients',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF111827),
+            ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
 
-          // Ingredient Input Bar
+          // 1. Ingredients List Card with Green Checkmarks
+          if (_enteredIngredients.isNotEmpty) ...[
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Column(
+                children: _enteredIngredients.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final ing = entry.value;
+                  final isChecked = _selectedIngredients.contains(ing);
+                  final isLast = index == _enteredIngredients.length - 1;
+
+                  return Column(
+                    children: [
+                      ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                        leading: Checkbox(
+                          value: isChecked,
+                          activeColor: AppTheme.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                          onChanged: (_) => _toggleSelectedIngredient(ing),
+                        ),
+                        title: Text(
+                          ing,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isChecked ? const Color(0xFF111827) : const Color(0xFF6B7280),
+                          ),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF9CA3AF)),
+                          tooltip: 'Remove',
+                          onPressed: () => _removeEnteredIngredient(ing),
+                        ),
+                        onTap: () => _toggleSelectedIngredient(ing),
+                      ),
+                      if (!isLast) const Divider(height: 1, color: Color(0xFFF3F4F6)),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // 2. Add Another Ingredient Input
           Container(
-            width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
@@ -564,87 +640,43 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const Padding(
                   padding: EdgeInsets.only(left: 14, right: 8),
-                  child: Icon(Icons.search_rounded, color: Color(0xFF9CA3AF), size: 20),
+                  child: Icon(Icons.add_circle_outline_rounded, color: AppTheme.primary, size: 20),
                 ),
                 Expanded(
                   child: TextField(
                     controller: _ingredientInputController,
-                    style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF111827)),
+                    style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF111827)),
                     decoration: const InputDecoration(
-                      hintText: 'Type ingredient name (e.g. Tomato, Rice, Egg, Potato)...',
+                      hintText: 'Add another ingredient...',
                       hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 14),
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
                     ),
                     onSubmitted: _addEnteredIngredient,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ElevatedButton(
-                    onPressed: () => _addEnteredIngredient(_ingredientInputController.text),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                TextButton(
+                  onPressed: () => _addEnteredIngredient(_ingredientInputController.text),
+                  child: Text(
+                    'Add',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
-                    child: const Text('Add', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
-          // Added Ingredients Chips
-          if (_enteredIngredients.isNotEmpty) ...[
-            Text(
-              'Selected Ingredients (${_enteredIngredients.length})',
-              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF374151)),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _enteredIngredients.map((ing) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        ing,
-                        style: GoogleFonts.inter(
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      GestureDetector(
-                        onTap: () => _removeEnteredIngredient(ing),
-                        child: const Icon(Icons.close_rounded, size: 14, color: AppTheme.primary),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // Quick Add Staples
+          // 3. Suggested Commonly Used Ingredients (Quick Add Chips)
           Text(
-            'Quick Add Staples',
-            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF6B7280)),
+            'Suggested Common Ingredients',
+            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF4B5563)),
           ),
           const SizedBox(height: 8),
           SingleChildScrollView(
@@ -656,7 +688,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.only(right: 8),
                   child: ActionChip(
                     label: Text(staple),
-                    backgroundColor: isAdded ? AppTheme.primary : const Color(0xFFF9FAFB),
+                    backgroundColor: isAdded ? AppTheme.primary.withValues(alpha: 0.1) : const Color(0xFFF9FAFB),
                     side: BorderSide(
                       color: isAdded ? AppTheme.primary : const Color(0xFFE5E7EB),
                       width: 1,
@@ -665,7 +697,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     labelStyle: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: isAdded ? FontWeight.w600 : FontWeight.w400,
-                      color: isAdded ? Colors.white : const Color(0xFF374151),
+                      color: isAdded ? AppTheme.primary : const Color(0xFF374151),
                     ),
                     onPressed: () {
                       if (isAdded) {
@@ -679,68 +711,102 @@ class _HomeScreenState extends State<HomeScreen> {
               }).toList(),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // Recipe Preferences Card (Servings, Spice Level, Dietary Goal)
+          // 4. Subheading: Recipe Preferences
+          Text(
+            'Recipe Preferences',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Preferences Box
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Recipe Preferences',
-                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF111827)),
+                // Servings & Spice Level
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Servings',
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline_rounded, size: 20, color: AppTheme.primary),
+                          onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
+                        ),
+                        Text(
+                          '$_servings',
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF111827)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppTheme.primary),
+                          onPressed: _servings < 10 ? () => setState(() => _servings++) : null,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 14),
+                const Divider(height: 16, color: Color(0xFFF3F4F6)),
 
-                // Controls Row: Servings & Spice Level
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isWide = constraints.maxWidth >= 550;
-                    if (isWide) {
-                      return Row(
-                        children: [
-                          Expanded(child: _buildServingsControl()),
-                          const SizedBox(width: 24),
-                          Expanded(child: _buildSpiceLevelControl()),
-                        ],
-                      );
-                    } else {
-                      return Column(
-                        children: [
-                          _buildServingsControl(),
-                          const Divider(height: 20, color: Color(0xFFE5E7EB)),
-                          _buildSpiceLevelControl(),
-                        ],
-                      );
-                    }
-                  },
+                // Spice Level
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Spice Level',
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
+                    ),
+                    DropdownButton<String>(
+                      value: _spiceLevel,
+                      underline: const SizedBox(),
+                      style: GoogleFonts.inter(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      items: _spiceLevels.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                      onChanged: (v) => setState(() => _spiceLevel = v!),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
+                const Divider(height: 16, color: Color(0xFFF3F4F6)),
 
-                // Dietary Goal
+                // Diet Goal Chips
                 Text(
-                  'Dietary Goal',
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF4B5563)),
+                  'Diet Goal',
+                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
                 ),
                 const SizedBox(height: 8),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: _dietOptions.map((diet) {
-                      final isSel = _dietType == diet;
+                    children: _dietOptions.map((opt) {
+                      final isSel = _dietType == opt['name'];
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
-                          label: Text(diet),
+                          avatar: isSel && opt['name'] == 'None'
+                              ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                              : null,
+                          label: Text('${opt['emoji']}${opt['label']}'),
                           selected: isSel,
                           selectedColor: AppTheme.primary,
-                          backgroundColor: Colors.white,
+                          backgroundColor: const Color(0xFFF9FAFB),
                           side: BorderSide(
                             color: isSel ? AppTheme.primary : const Color(0xFFE5E7EB),
                           ),
@@ -750,7 +816,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
                             color: isSel ? Colors.white : const Color(0xFF374151),
                           ),
-                          onSelected: (_) => setState(() => _dietType = diet),
+                          onSelected: (_) => setState(() => _dietType = opt['name']!),
                         ),
                       );
                     }).toList(),
@@ -761,81 +827,42 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Primary Find Recipes Action
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _onFindRecipesFromEntered,
-              icon: const Icon(Icons.restaurant_menu_rounded, size: 18),
-              label: const Text('Find Recipes with Selected Ingredients', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                elevation: 0,
+          // 5. Dual Bottom Action Buttons ([ Add to Pantry ] & [ Find Recipes ])
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _addToPantryFromEntered,
+                  icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                  label: const Text('Add to Pantry', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    side: const BorderSide(color: AppTheme.primary, width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 14),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton.icon(
+                  onPressed: _onFindRecipesFromEntered,
+                  icon: const Icon(Icons.restaurant_menu_rounded, size: 16),
+                  label: const Text('Find Recipes', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildServingsControl() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.people_outline_rounded, size: 18, color: Color(0xFF4B5563)),
-            const SizedBox(width: 8),
-            Text('Servings', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151))),
-          ],
-        ),
-        Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.remove_circle_outline_rounded, size: 20, color: Color(0xFF6B7280)),
-              onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
-            ),
-            Text(
-              '$_servings',
-              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF111827)),
-            ),
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: Color(0xFF6B7280)),
-              onPressed: _servings < 10 ? () => setState(() => _servings++) : null,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSpiceLevelControl() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.local_fire_department_outlined, size: 18, color: Color(0xFF4B5563)),
-            const SizedBox(width: 8),
-            Text('Spice Level', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151))),
-          ],
-        ),
-        DropdownButton<String>(
-          value: _spiceLevel,
-          underline: const SizedBox(),
-          style: GoogleFonts.inter(
-            color: AppTheme.primary,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-          items: _spiceLevels.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-          onChanged: (v) => setState(() => _spiceLevel = v!),
-        ),
-      ],
     );
   }
 
