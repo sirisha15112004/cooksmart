@@ -228,49 +228,44 @@ class RecipeService {
           if (totalSampled > 25) {
             final whiteRatio = whiteOrTransparent / totalSampled;
 
-            // 1. Single-Item Dominance (Checked FIRST so isolated white-background items like Potatoes never trigger platter)
-            if (tanPotato > 15 && orangeCarrot < 5 && forestGreenBroccoli < 5 && brightRedTomato < 5 && cornCob < 5) {
+            // 1. Single-Item Dominance (Checked FIRST)
+            if (tanPotato > 15 && outdoorGreen < 12 && orangeCarrot < 4 && forestGreenBroccoli < 4 && brightRedTomato < 4) {
               return ['Potato'];
             }
-            if (brightRedTomato > 15 && orangeCarrot < 5 && forestGreenBroccoli < 5 && cornCob < 5 && darkPurpleEggplant < 3) {
+            if (brightRedTomato > 15 && outdoorGreen < 12 && orangeCarrot < 4 && forestGreenBroccoli < 4 && cornCob < 4) {
               return ['Tomato'];
             }
-            if (orangeCarrot > 15 && forestGreenBroccoli < 5 && brightRedTomato < 5 && cornCob < 5) {
+            if (orangeCarrot > 15 && outdoorGreen < 12 && forestGreenBroccoli < 4 && brightRedTomato < 4) {
               return ['Carrot'];
             }
-            if (forestGreenBroccoli > 15 && orangeCarrot < 5 && brightRedTomato < 5 && cornCob < 5) {
+            if (forestGreenBroccoli > 15 && outdoorGreen < 12 && orangeCarrot < 4 && brightRedTomato < 4) {
               return ['Broccoli'];
             }
-            if (darkPurpleEggplant > 8 && orangeCarrot < 5 && forestGreenBroccoli < 5 && cornCob < 5) {
+            if (darkPurpleEggplant > 8 && outdoorGreen < 12 && orangeCarrot < 4 && forestGreenBroccoli < 4) {
               return ['Eggplant'];
             }
-            if (cornCob > 15 && darkPurpleEggplant < 3 && orangeCarrot < 5 && forestGreenBroccoli < 5) {
-              return ['Corn'];
-            }
 
-            // 2. Multi-Item Scenes (Require actual presence of multiple distinct color signatures)
-            final isPlatterScene = (whiteRatio > 0.15 && orangeCarrot > 4 && (forestGreenBroccoli > 4 || ivoryCauliflower > 4)) ||
-                (orangeCarrot > 5 && forestGreenBroccoli > 5);
-            if (isPlatterScene) {
-              return ['Broccoli', 'Carrot', 'Bell Pepper', 'Tomato', 'Cauliflower', 'Cucumber'];
-            }
-
-            final isGardenBasketScene = (outdoorGreen > 20 && (cornCob > 3 || darkPurpleEggplant > 2 || brightRedTomato > 4)) ||
-                (cornCob > 4 && darkPurpleEggplant > 2);
+            // 2. Garden Harvest Basket Scene (Rich outdoor natural foliage, no white studio backdrop)
+            final isGardenBasketScene = outdoorGreen > 20 && whiteRatio < 0.12;
             if (isGardenBasketScene) {
               return ['Corn', 'Eggplant', 'Bell Pepper', 'Tomato', 'Spinach', 'Green Chili'];
             }
 
-            // 3. Granular Individual Item Aggregation
+            // 3. Veggie Platter Scene (White / transparent studio backdrop with carrot & broccoli)
+            final isPlatterScene = whiteRatio > 0.15 && outdoorGreen < 18 && (orangeCarrot > 5 || forestGreenBroccoli > 5 || ivoryCauliflower > 5);
+            if (isPlatterScene) {
+              return ['Broccoli', 'Carrot', 'Bell Pepper', 'Tomato', 'Cauliflower', 'Cucumber'];
+            }
+
+            // 4. Granular Individual Item Fallback
             List<String> individual = [];
-            if (tanPotato > 12) individual.add('Potato');
-            if (brightRedTomato > 10) individual.add('Tomato');
-            if (orangeCarrot > 10) individual.add('Carrot');
-            if (forestGreenBroccoli > 10) individual.add('Broccoli');
-            if (darkPurpleEggplant > 6) individual.add('Eggplant');
-            if (cornCob > 8) individual.add('Corn');
-            if (ivoryCauliflower > 10) individual.add('Cauliflower');
-            if (outdoorGreen > 25 && individual.isNotEmpty) individual.add('Spinach');
+            if (tanPotato > 15) individual.add('Potato');
+            if (brightRedTomato > 12) individual.add('Tomato');
+            if (orangeCarrot > 12) individual.add('Carrot');
+            if (forestGreenBroccoli > 12) individual.add('Broccoli');
+            if (darkPurpleEggplant > 8) individual.add('Eggplant');
+            if (cornCob > 10) individual.add('Corn');
+            if (ivoryCauliflower > 12) individual.add('Cauliflower');
 
             if (individual.isNotEmpty) {
               return individual;
