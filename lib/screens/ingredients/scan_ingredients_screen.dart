@@ -26,6 +26,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   int _servings = 2;
   String _spiceLevel = 'Medium';
   String _dietType = 'None';
+  final _manualAddController = TextEditingController();
   final _service = RecipeService();
 
   final List<Map<String, String>> _dietOptions = [
@@ -36,6 +37,12 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     {'label': 'Diabetic-Friendly', 'emoji': '🩺'},
     {'label': 'Weight-Loss', 'emoji': '⚖️'},
   ];
+
+  @override
+  void dispose() {
+    _manualAddController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -300,7 +307,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
                   color: AppTheme.successColor, size: 20),
               const SizedBox(width: 8),
               Text(
-                  'Found ${_scannedIngredients.length} ingredient${_scannedIngredients.length != 1 ? 's' : ''}',
+                  'Detected: ${_scannedIngredients.length} ingredient${_scannedIngredients.length != 1 ? 's' : ''}',
                   style: GoogleFonts.dmSans(
                     color: AppTheme.successColor,
                     fontWeight: FontWeight.w600,
@@ -352,6 +359,85 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
                     ),
                   ))
               .toList(),
+        ),
+        const SizedBox(height: 16),
+        // Add more ingredients text bar
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _manualAddController,
+                decoration: InputDecoration(
+                  hintText: 'Add another ingredient (e.g. Garlic, Onion)...',
+                  hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppTheme.textSecondary),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.divider),
+                  ),
+                  prefixIcon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppTheme.primary),
+                ),
+                onSubmitted: (val) {
+                  final trimmed = val.trim();
+                  if (trimmed.isNotEmpty && !_scannedIngredients.contains(trimmed)) {
+                    setState(() => _scannedIngredients.add(trimmed));
+                    _manualAddController.clear();
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                final val = _manualAddController.text.trim();
+                if (val.isNotEmpty && !_scannedIngredients.contains(val)) {
+                  setState(() => _scannedIngredients.add(val));
+                  _manualAddController.clear();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Quick pairings / pantry staples
+        Text('Quick add pantry staples:',
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textSecondary,
+            )),
+        const SizedBox(height: 6),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: ['Onion', 'Garlic', 'Tomato', 'Green Chili', 'Butter', 'Salt', 'Olive Oil', 'Cumin']
+                .where((s) => !_scannedIngredients.contains(s))
+                .map((s) => Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ActionChip(
+                        label: Text('+ $s',
+                            style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.w600)),
+                        backgroundColor: AppTheme.primary.withValues(alpha: 0.08),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(
+                                color: AppTheme.primary.withValues(alpha: 0.2))),
+                        onPressed: () =>
+                            setState(() => _scannedIngredients.add(s)),
+                      ),
+                    ))
+                .toList(),
+          ),
         ),
         const SizedBox(height: 24),
         // Preferences card
