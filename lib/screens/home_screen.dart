@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/recipe_model.dart';
+import '../models/shopping_item.dart';
 import '../services/api_service.dart';
 import '../services/recipe_service.dart';
 import '../theme/app_theme.dart';
@@ -33,35 +35,11 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Recipe> _recommendedRecipes = [];
   int _savedRecipesCount = 0;
   int _plannedMealsCount = 0;
+  int _shoppingItemsCount = 0;
   bool _isLoadingData = true;
 
   final TextEditingController _quickSearchController = TextEditingController();
   final RecipeService _recipeService = RecipeService();
-
-  // Smart pantry items with expiry tracking
-  final List<Map<String, dynamic>> _expiringItems = [
-    {
-      'name': 'Tomato',
-      'quantity': '4 pcs',
-      'daysLeft': 1,
-      'status': 'Expires tomorrow',
-      'recipeCount': 3,
-    },
-    {
-      'name': 'Spinach',
-      'quantity': '1 bunch',
-      'daysLeft': 2,
-      'status': 'Expires in 2 days',
-      'recipeCount': 2,
-    },
-    {
-      'name': 'Milk',
-      'quantity': '500 ml',
-      'daysLeft': 3,
-      'status': 'Expires in 3 days',
-      'recipeCount': 4,
-    },
-  ];
 
   @override
   void initState() {
@@ -82,7 +60,17 @@ class _HomeScreenState extends State<HomeScreen> {
     _userName = prefs.getString('userName') ?? 'Chef';
     _pantryItems = prefs.getStringList('pantry_ingredients') ?? ['Tomato', 'Potato', 'Onion', 'Rice', 'Eggs'];
 
-    // Generate dynamic recipe recommendations based on pantry
+    // Load shopping list count
+    final rawShopping = prefs.getString('shopping_list_items');
+    if (rawShopping != null && rawShopping.isNotEmpty) {
+      try {
+        final List<dynamic> decoded = jsonDecode(rawShopping);
+        final items = decoded.map((m) => ShoppingItem.fromJson(m)).toList();
+        _shoppingItemsCount = items.where((i) => !i.isCompleted).length;
+      } catch (_) {}
+    }
+
+    // Generate dynamic recipe recommendations based on actual pantry items
     try {
       final recipesMap = await _recipeService.getRecipes(
         ingredients: _pantryItems.isNotEmpty ? _pantryItems : ['Tomato', 'Potato', 'Onion'],
@@ -136,19 +124,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
-  }
-
-  void _findRecipesForIngredient(String ing) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => RecipeResultsScreen(
-          ingredients: [ing, ..._pantryItems.where((p) => p.toLowerCase() != ing.toLowerCase())],
-          servings: 2,
-          spiceLevel: 'Medium',
-        ),
-      ),
-    );
   }
 
   @override
@@ -273,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
               else
                 const Spacer(),
 
-              // Right Actions: Search, Notifications, Profile
+              // Right Actions: Search, Saved Recipes, Profile
               Row(
                 children: [
                   IconButton(
@@ -347,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // -------------------------------------------------------------
-  // HOME PAGE CONTENT (SaaS Food-Tech Web Architecture)
+  // HOME PAGE CONTENT
   // -------------------------------------------------------------
   Widget _buildHomePage(bool isDesktop, bool isTablet) {
     return SingleChildScrollView(
@@ -370,9 +345,9 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildRecommendedRecipesSection(isDesktop, isTablet),
               const SizedBox(height: 36),
 
-              // 4. Use Soon Smart Pantry Section
-              _buildUseSoonSection(isDesktop, isTablet),
-              const SizedBox(height: 48),
+              // 4. Quick Action Pantry Banner
+              _buildQuickPantryBanner(),
+              const SizedBox(height: 36),
             ],
           ),
         ),
@@ -657,7 +632,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(width: 10),
                           const Icon(Icons.check_circle_outline_rounded, size: 12, color: Color(0xFF16A34A)),
                           const SizedBox(width: 4),
-                          Text('4 / 5 Ingredients Available', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF16A34A), fontWeight: FontWeight.w500)),
+                          Text(
+                            'Matches Pantry',
+                            style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF16A34A), fontWeight: FontWeight.w500),
+                          ),
                         ],
                       ),
                     ],
@@ -670,7 +648,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    '80% Match',
+                    'Best Match',
                     style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primary),
                   ),
                 ),
@@ -684,7 +662,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Available: Tomato, Potato, Onion, Rice',
+                'Available: ${_pantryItems.take(4).join(", ")}',
                 style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF6B7280)),
               ),
               TextButton(
@@ -723,7 +701,7 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () => setState(() => _activeNavIndex = 2),
               child: Text(
-                'View All Details →',
+                'View Pantry →',
                 style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
               ),
             ),
@@ -742,7 +720,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _statCard(
                       title: 'Pantry Items',
                       value: '${_pantryItems.length}',
-                      subtitle: 'Active ingredients',
+                      subtitle: 'In stock at home',
                       icon: Icons.inventory_2_outlined,
                       onTap: () => setState(() => _activeNavIndex = 2),
                     ),
@@ -750,12 +728,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 14),
                   Expanded(
                     child: _statCard(
-                      title: 'Expiring Soon',
-                      value: '${_expiringItems.length}',
-                      subtitle: 'Need attention',
-                      icon: Icons.access_time_rounded,
-                      isWarning: _expiringItems.isNotEmpty,
-                      onTap: () => setState(() => _activeNavIndex = 2),
+                      title: 'Recipes Ready',
+                      value: '${_recommendedRecipes.length}',
+                      subtitle: 'Ready to cook now',
+                      icon: Icons.restaurant_menu_outlined,
+                      onTap: () => setState(() => _activeNavIndex = 3),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -771,11 +748,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 14),
                   Expanded(
                     child: _statCard(
-                      title: 'Meals This Week',
-                      value: '$_plannedMealsCount',
-                      subtitle: 'Scheduled plans',
-                      icon: Icons.calendar_today_outlined,
-                      onTap: () => setState(() => _activeNavIndex = 4),
+                      title: 'Shopping Items',
+                      value: '$_shoppingItemsCount',
+                      subtitle: 'Items to buy',
+                      icon: Icons.checklist_rounded,
+                      onTap: () => setState(() => _activeNavIndex = 5),
                     ),
                   ),
                 ],
@@ -789,7 +766,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: _statCard(
                           title: 'Pantry Items',
                           value: '${_pantryItems.length}',
-                          subtitle: 'Active items',
+                          subtitle: 'In stock',
                           icon: Icons.inventory_2_outlined,
                           onTap: () => setState(() => _activeNavIndex = 2),
                         ),
@@ -797,12 +774,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _statCard(
-                          title: 'Expiring Soon',
-                          value: '${_expiringItems.length}',
-                          subtitle: 'Need attention',
-                          icon: Icons.access_time_rounded,
-                          isWarning: _expiringItems.isNotEmpty,
-                          onTap: () => setState(() => _activeNavIndex = 2),
+                          title: 'Recipes Ready',
+                          value: '${_recommendedRecipes.length}',
+                          subtitle: 'Ready now',
+                          icon: Icons.restaurant_menu_outlined,
+                          onTap: () => setState(() => _activeNavIndex = 3),
                         ),
                       ),
                     ],
@@ -814,7 +790,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: _statCard(
                           title: 'Saved Recipes',
                           value: '$_savedRecipesCount',
-                          subtitle: 'Favorite dishes',
+                          subtitle: 'Favorites',
                           icon: Icons.bookmark_outline_rounded,
                           onTap: () => setState(() => _activeNavIndex = 6),
                         ),
@@ -822,11 +798,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _statCard(
-                          title: 'Meals Planned',
-                          value: '$_plannedMealsCount',
-                          subtitle: 'Scheduled plans',
-                          icon: Icons.calendar_today_outlined,
-                          onTap: () => setState(() => _activeNavIndex = 4),
+                          title: 'Shopping Items',
+                          value: '$_shoppingItemsCount',
+                          subtitle: 'To buy',
+                          icon: Icons.checklist_rounded,
+                          onTap: () => setState(() => _activeNavIndex = 5),
                         ),
                       ),
                     ],
@@ -845,7 +821,6 @@ class _HomeScreenState extends State<HomeScreen> {
     required String value,
     required String subtitle,
     required IconData icon,
-    bool isWarning = false,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -870,13 +845,13 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: isWarning ? const Color(0xFFFEF3C7) : const Color(0xFFF3F4F6),
+                color: const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
                 size: 18,
-                color: isWarning ? const Color(0xFFD97706) : AppTheme.primary,
+                color: AppTheme.primary,
               ),
             ),
             const SizedBox(width: 12),
@@ -1051,7 +1026,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Match Indicator
             Text(
-              '$inPantryCount / $totalCount Ingredients Available',
+              '$inPantryCount / $totalCount Ingredients in Pantry',
               style: GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
@@ -1145,120 +1120,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // -------------------------------------------------------------
-  // USE SOON SMART PANTRY SECTION (Expiry Tracking & Action)
+  // QUICK PANTRY & MEAL PLANNER ACTION BANNER
   // -------------------------------------------------------------
-  Widget _buildUseSoonSection(bool isDesktop, bool isTablet) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Use These Ingredients Soon',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF111827),
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Reduce food waste by cooking with items approaching expiry',
-                  style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B7280)),
-                ),
-              ],
-            ),
-            TextButton(
-              onPressed: () => setState(() => _activeNavIndex = 2),
-              child: Text(
-                'Manage Expiry Dates →',
-                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        if (_expiringItems.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF16A34A), size: 24),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'All pantry ingredients are fresh',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: const Color(0xFF111827)),
-                      ),
-                      Text(
-                        'No ingredients are expiring in the next 3 days.',
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B7280)),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isRow = constraints.maxWidth >= 768;
-              if (isRow) {
-                return Row(
-                  children: _expiringItems.map((item) {
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: _buildExpiringItemCard(item),
-                      ),
-                    );
-                  }).toList(),
-                );
-              } else {
-                return Column(
-                  children: _expiringItems.map((item) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _buildExpiringItemCard(item),
-                    );
-                  }).toList(),
-                );
-              }
-            },
-          ),
-      ],
-    );
-  }
-
-  Widget _buildExpiringItemCard(Map<String, dynamic> item) {
-    final name = item['name'] as String;
-    final qty = item['quantity'] as String;
-    final status = item['status'] as String;
-    final recipeCount = item['recipeCount'] as int;
-    final isUrgent = (item['daysLeft'] as int) <= 1;
-
+  Widget _buildQuickPantryBanner() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isUrgent ? const Color(0xFFFCA5A5) : const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x04000000),
@@ -1267,57 +1138,50 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                name,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF111827),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isUrgent ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  status,
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Center(
+              child: Icon(Icons.auto_stories_outlined, color: AppTheme.primary, size: 24),
+            ),
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Plan Your Weekly Meals',
                   style: GoogleFonts.inter(
-                    fontSize: 10,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: isUrgent ? const Color(0xFFB91C1C) : const Color(0xFF92400E),
+                    color: const Color(0xFF111827),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '$qty in pantry • $recipeCount recipes available',
-            style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF6B7280)),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _findRecipesForIngredient(name),
-              icon: const Icon(Icons.restaurant_rounded, size: 14),
-              label: const Text('Find Recipes', style: TextStyle(fontSize: 12)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                elevation: 0,
-              ),
+                const SizedBox(height: 2),
+                Text(
+                  'Organize breakfast, lunch, and dinner with automatic shopping list generation.',
+                  style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B7280)),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton(
+            onPressed: () => setState(() => _activeNavIndex = 4),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Open Meal Planner', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
