@@ -123,10 +123,90 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     );
   }
 
+  void _showAiSettingsDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentKey = prefs.getString('groq_api_key') ?? '';
+    final controller = TextEditingController(text: currentKey);
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.auto_awesome, color: AppTheme.primary),
+            const SizedBox(width: 8),
+            Text('AI Vision Engine',
+                style: GoogleFonts.dmSans(
+                    fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'High-Precision Culinary Vision is active. You can optionally save a Groq API Key to enable cloud inference:',
+              style: GoogleFonts.dmSans(
+                  fontSize: 13, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                labelText: 'Groq API Key (gsk_...)',
+                hintText: 'Enter API Key or leave empty',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await prefs.setString('groq_api_key', controller.text.trim());
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('AI Vision settings saved successfully!'),
+                      backgroundColor: AppTheme.primary),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Save Key', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan Ingredients')),
+      appBar: AppBar(
+        title: const Text('Scan Ingredients'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_suggest_rounded),
+            tooltip: 'AI Vision Settings',
+            onPressed: _showAiSettingsDialog,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(

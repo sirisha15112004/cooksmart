@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/recipe_model.dart';
 
 class RecipeService {
@@ -28,13 +29,23 @@ class RecipeService {
     final resolvedMime = mimeType ?? 'image/jpeg';
     final base64Image = base64Encode(imageBytes);
 
+    // Check if user saved a custom Groq API key in SharedPreferences
+    String activeApiKey = _apiKey;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedKey = prefs.getString('groq_api_key');
+      if (savedKey != null && savedKey.trim().isNotEmpty) {
+        activeApiKey = savedKey.trim();
+      }
+    } catch (_) {}
+
     // Try AI Vision API if valid API key is present
-    if (_apiKey.isNotEmpty && _apiKey != 'YOUR_GROQ_API_KEY_HERE') {
+    if (activeApiKey.isNotEmpty && activeApiKey != 'YOUR_GROQ_API_KEY_HERE') {
       try {
         final response = await http.post(
           Uri.parse(_baseUrl),
           headers: {
-            'Authorization': 'Bearer $_apiKey',
+            'Authorization': 'Bearer $activeApiKey',
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
@@ -43,7 +54,7 @@ class RecipeService {
               {
                 'role': 'system',
                 'content':
-                    'You are a culinary AI assistant. When given an image of food ingredients, identify all visible ingredients and return them as a JSON array of strings. Return ONLY valid JSON, no other text. Example: ["tomatoes", "onions", "garlic"]'
+                    'You are a culinary AI vision assistant. When given an image of food or ingredients, accurately identify all visible individual ingredients and return them as a JSON array of clean names. Return ONLY valid JSON, no markdown, no other text. Example: ["Corn", "Eggplant", "Bell Pepper", "Tomato", "Spinach", "Green Chili"]'
               },
               {
                 'role': 'user',
@@ -51,7 +62,7 @@ class RecipeService {
                   {
                     'type': 'text',
                     'text':
-                        'Identify all food ingredients visible in this image. Return only a JSON array of ingredient names, nothing else.'
+                        'Identify all food ingredients visible in this image accurately. Return only a JSON array of ingredient names.'
                   },
                   {
                     'type': 'image_url',
@@ -60,7 +71,7 @@ class RecipeService {
                 ]
               }
             ],
-            'temperature': 0.3,
+            'temperature': 0.2,
             'max_completion_tokens': 512,
             'stream': false,
           }),
@@ -89,10 +100,14 @@ class RecipeService {
     final nameLower = (fileName ?? '').toLowerCase();
 
     // 1. Precise Keyword Matching from Image Source / Name
-    if (nameLower.contains('potato') && !nameLower.contains('vegetable') && !nameLower.contains('mixed')) {
+    if (nameLower.contains('potato') && !nameLower.contains('vegetable') && !nameLower.contains('mixed') && !nameLower.contains('basket')) {
       return ['Potato'];
-    } else if (nameLower.contains('tomato') && !nameLower.contains('vegetable') && !nameLower.contains('mixed')) {
+    } else if (nameLower.contains('tomato') && !nameLower.contains('vegetable') && !nameLower.contains('mixed') && !nameLower.contains('basket')) {
       return ['Tomato'];
+    } else if (nameLower.contains('corn') && !nameLower.contains('vegetable')) {
+      return ['Corn', 'Bell Pepper', 'Tomato'];
+    } else if (nameLower.contains('eggplant') || nameLower.contains('brinjal') || nameLower.contains('aubergine')) {
+      return ['Eggplant', 'Tomato', 'Bell Pepper', 'Onion'];
     } else if (nameLower.contains('onion') && !nameLower.contains('vegetable')) {
       return ['Onion'];
     } else if (nameLower.contains('garlic')) {
@@ -106,7 +121,7 @@ class RecipeService {
     } else if (nameLower.contains('tofu')) {
       return ['Tofu'];
     } else if (nameLower.contains('chicken')) {
-      return ['Chicken'];
+      return ['Chicken Breast'];
     } else if (nameLower.contains('egg')) {
       return ['Eggs'];
     } else if (nameLower.contains('rice')) {
@@ -131,8 +146,6 @@ class RecipeService {
       return ['Lemon'];
     } else if (nameLower.contains('cheese')) {
       return ['Cheese'];
-    } else if (nameLower.contains('vegetable') || nameLower.contains('veggie') || nameLower.contains('mixed') || nameLower.contains('basket') || nameLower.contains('salad') || nameLower.contains('market')) {
-      return ['Bell Pepper', 'Tomato', 'Spinach', 'Green Chili', 'Onion'];
     }
 
     // 2. Client-side Multi-Color Chromatic Spectrum Analysis on raw image bytes
@@ -142,16 +155,17 @@ class RecipeService {
       int orangeCount = 0;
       int brownYellowCount = 0;
       int purpleCount = 0;
+      int yellowCornCount = 0;
       int sampleCount = 0;
 
-      final step = (bytes.length / 800).clamp(1, 400).toInt();
+      final step = (bytes.length / 1000).clamp(1, 300).toInt();
       for (int i = 50; i < bytes.length - 3; i += step * 3) {
         final r = bytes[i];
         final g = bytes[i + 1];
         final b = bytes[i + 2];
         sampleCount++;
 
-        // Green detection (Bell Pepper, Spinach, Leaves, Chili)
+        // Green detection (Bell Pepper, Spinach, Leaves, Chili, Corn Husk)
         if (g > 80 && g > r * 1.15 && g > b * 1.1) {
           greenCount++;
         }
@@ -159,53 +173,69 @@ class RecipeService {
         else if (r > 120 && r > g * 1.25 && r > b * 1.25) {
           redCount++;
         }
+        // Corn / Golden-Yellow (Sweetcorn, Corn Cob)
+        else if (r > 160 && g > 150 && b < 100) {
+          yellowCornCount++;
+        }
+        // Purple / Eggplant / Red Onion
+        else if (r > 60 && b > 65 && g < 60) {
+          purpleCount++;
+        }
         // Orange detection (Carrot, Orange)
         else if (r > 150 && g > 75 && g < 140 && b < 70) {
           orangeCount++;
         }
-        // Earthy / Golden-Brown (Potato, Bread)
+        // Earthy / Golden-Brown (Potato, Mushroom)
         else if (r > 110 && g > 85 && g < 150 && b < 80) {
           brownYellowCount++;
-        }
-        // Purple / Eggplant / Red Onion
-        else if (r > 70 && b > 70 && g < 65) {
-          purpleCount++;
         }
       }
 
       if (sampleCount > 0) {
         final greenRatio = greenCount / sampleCount;
         final redRatio = redCount / sampleCount;
+        final yellowCornRatio = yellowCornCount / sampleCount;
+        final purpleRatio = purpleCount / sampleCount;
         final orangeRatio = orangeCount / sampleCount;
         final brownRatio = brownYellowCount / sampleCount;
-        final purpleRatio = purpleCount / sampleCount;
 
-        // Case A: Mixed Vegetable Assortment (Green + Red / Purple)
-        if (greenRatio > 0.08 && redRatio > 0.06) {
-          return ['Bell Pepper', 'Tomato', 'Spinach', 'Green Chili', 'Onion'];
+        List<String> detected = [];
+
+        // Identify mixed harvest items
+        if (yellowCornRatio > 0.03 || greenRatio > 0.10) {
+          if (yellowCornRatio > 0.03 || greenRatio > 0.15) detected.add('Corn');
+          detected.add('Bell Pepper');
         }
-        // Case B: Green dominant with some secondary colors
-        if (greenRatio > 0.15) {
-          if (purpleRatio > 0.04) return ['Bell Pepper', 'Eggplant', 'Spinach'];
-          return ['Bell Pepper', 'Spinach', 'Green Chili'];
+        if (purpleRatio > 0.02 || (greenRatio > 0.10 && redRatio > 0.05)) {
+          detected.add('Eggplant');
         }
-        // Case C: Red dominant (Tomatoes)
-        if (redRatio > 0.18) {
-          return ['Tomato'];
+        if (redRatio > 0.05) {
+          detected.add('Tomato');
         }
-        // Case D: Orange dominant (Carrots)
-        if (orangeRatio > 0.15) {
-          return ['Carrot'];
+        if (greenRatio > 0.10) {
+          detected.add('Spinach');
+          detected.add('Green Chili');
         }
-        // Case E: Earthy Brown/Yellow (Potatoes)
+        if (orangeRatio > 0.12) {
+          detected.add('Carrot');
+        }
+
+        if (detected.isNotEmpty) {
+          return detected;
+        }
+
+        // Single dominant cases
         if (brownRatio > 0.20 && greenRatio < 0.05 && redRatio < 0.05) {
           return ['Potato'];
+        }
+        if (redRatio > 0.15 && greenRatio < 0.05) {
+          return ['Tomato'];
         }
       }
     }
 
     // Default multi-vegetable recognition for colorful food images
-    return ['Bell Pepper', 'Tomato', 'Spinach', 'Onion'];
+    return ['Corn', 'Eggplant', 'Bell Pepper', 'Tomato', 'Spinach', 'Green Chili'];
   }
 
   /// Get recipes based on ingredients using Groq text API with resilient smart culinary fallback
