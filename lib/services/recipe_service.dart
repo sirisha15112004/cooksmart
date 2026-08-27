@@ -281,6 +281,533 @@ class RecipeService {
     return [];
   }
 
+  /// Get recipes that require ONLY the ingredients currently present in My Pantry.
+  /// Strictly checks that 100% of required ingredients for each recipe exist in pantry.
+  /// No partial matches or recipes with missing ingredients are returned.
+  Future<List<Recipe>> getPantryStrictRecipes({
+    required List<String> pantryIngredients,
+    int servings = 2,
+    String spiceLevel = 'Medium',
+    String? dietType,
+  }) async {
+    final cleanPantry = pantryIngredients
+        .map((e) => e.trim().toLowerCase())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    if (cleanPantry.isEmpty) {
+      return [];
+    }
+
+    bool hasItem(String requiredItem) {
+      final req = requiredItem.trim().toLowerCase();
+      return cleanPantry.any((p) => req.contains(p) || p.contains(req));
+    }
+
+    final catalog = _getMasterPantryRecipeCatalog(
+      servings: servings,
+      spiceLevel: spiceLevel,
+      dietType: dietType,
+    );
+
+    final List<Recipe> strictlyMatched = [];
+
+    for (final entry in catalog) {
+      final List<String> requiredList = entry['required'] as List<String>;
+      final Recipe recipe = entry['recipe'] as Recipe;
+
+      // STRICT: Every single required core ingredient must be available in user's pantry
+      final bool allAvailable = requiredList.every((req) => hasItem(req));
+
+      if (allAvailable) {
+        strictlyMatched.add(recipe);
+      }
+    }
+
+    return strictlyMatched;
+  }
+
+  /// Master curated culinary recipe catalog with explicit required ingredients list
+  List<Map<String, dynamic>> _getMasterPantryRecipeCatalog({
+    required int servings,
+    required String spiceLevel,
+    String? dietType,
+  }) {
+    final diet = dietType ?? 'None';
+
+    return [
+      // 1. Tomato + Potato + Onion
+      {
+        'required': ['Tomato', 'Potato', 'Onion'],
+        'recipe': Recipe(
+          id: 'pantry_strict_1',
+          title: 'Homestyle Aloo Tomato Curry',
+          description: 'Tender potato cubes simmered in a spiced tomato and onion gravy with aromatic cumin and turmeric.',
+          ingredients: [
+            '$servings medium Potatoes (diced)',
+            '2 ripe Tomatoes (chopped)',
+            '1 medium Onion (chopped)',
+            '1 tsp Cumin seeds & Turmeric',
+            '1 tbsp Cooking Oil',
+            'Salt to taste'
+          ],
+          steps: [
+            'Step 1: Heat oil in a pan and sauté chopped onions until golden translucent.',
+            'Step 2: Add chopped tomatoes, turmeric, cumin, and salt. Cook until tomatoes soften into a rich gravy.',
+            'Step 3: Add diced potatoes and 1/2 cup water. Cover and simmer for 15 minutes until potatoes are fork-tender.',
+            'Step 4: Garnish with fresh herbs and serve hot.'
+          ],
+          cookingTimeMinutes: 20,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 220 * servings,
+            protein: 4.5 * servings,
+            carbs: 38.0 * servings,
+            fat: 5.5 * servings,
+            fiber: 5.0 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🥘',
+          cuisine: 'Indian',
+          dietType: 'Vegetarian',
+          isFavorite: false,
+        ),
+      },
+
+      // 2. Tomato + Rice + Onion
+      {
+        'required': ['Tomato', 'Rice', 'Onion'],
+        'recipe': Recipe(
+          id: 'pantry_strict_2',
+          title: 'Spiced Tomato Rice (Thakkali Sadam)',
+          description: 'Aromatic basmati rice cooked with caramelized onions, ripe juicy tomatoes, and warm homestyle spices.',
+          ingredients: [
+            '$servings cups Cooked Rice',
+            '2 ripe Tomatoes (diced)',
+            '1 medium Onion (sliced)',
+            '1 tsp Mustard seeds & Cumin',
+            '1 tbsp Cooking Oil',
+            'Salt to taste'
+          ],
+          steps: [
+            'Step 1: Heat oil in a skillet. Splutter mustard and cumin seeds.',
+            'Step 2: Add sliced onions and sauté until lightly caramelized.',
+            'Step 3: Add tomatoes and salt. Cook until mushy and oil leaves the sides.',
+            'Step 4: Gently fold in the cooked rice and mix until evenly coated and heated through.'
+          ],
+          cookingTimeMinutes: 18,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 260 * servings,
+            protein: 4.0 * servings,
+            carbs: 48.0 * servings,
+            fat: 5.0 * servings,
+            fiber: 3.2 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🍚',
+          cuisine: 'South Indian',
+          dietType: 'Vegetarian',
+          isFavorite: false,
+        ),
+      },
+
+      // 3. Potato + Onion
+      {
+        'required': ['Potato', 'Onion'],
+        'recipe': Recipe(
+          id: 'pantry_strict_3',
+          title: 'Crispy Jeera Aloo (Cumin Spiced Potatoes)',
+          description: 'Golden pan-roasted potatoes tossed with caramelized onions, whole cumin, and cracked black pepper.',
+          ingredients: [
+            '$servings large Potatoes (boiled & cubed)',
+            '1 medium Onion (sliced)',
+            '1.5 tsp Whole Cumin seeds',
+            '1 tbsp Cooking Oil',
+            'Salt and pepper to taste'
+          ],
+          steps: [
+            'Step 1: Heat oil in a wide frying pan. Add cumin seeds and let them sizzle.',
+            'Step 2: Add sliced onions and cook for 3 minutes until soft.',
+            'Step 3: Add boiled potato cubes, salt, and pepper.',
+            'Step 4: Pan-fry on medium-high heat for 8 minutes until edges turn crispy and golden brown.'
+          ],
+          cookingTimeMinutes: 15,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 190 * servings,
+            protein: 3.5 * servings,
+            carbs: 32.0 * servings,
+            fat: 6.0 * servings,
+            fiber: 4.0 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🥔',
+          cuisine: 'Indian',
+          dietType: 'Vegetarian',
+          isFavorite: false,
+        ),
+      },
+
+      // 4. Tomato + Potato + Onion + Rice
+      {
+        'required': ['Tomato', 'Potato', 'Onion', 'Rice'],
+        'recipe': Recipe(
+          id: 'pantry_strict_4',
+          title: 'Garden Veggie Biryani Pulao',
+          description: 'Layered fragrant rice cooked in a single pot with hearty potatoes, sautéed onions, tomatoes, and whole spices.',
+          ingredients: [
+            '$servings cups Rice (rinsed)',
+            '$servings medium Potatoes (cubed)',
+            '2 ripe Tomatoes (chopped)',
+            '1 large Onion (sliced)',
+            '2 tbsp Cooking Oil',
+            '1 tsp Garam Masala & Salt'
+          ],
+          steps: [
+            'Step 1: Sauté sliced onions in oil until golden brown.',
+            'Step 2: Add tomatoes, potatoes, garam masala, and salt. Cook for 4 minutes.',
+            'Step 3: Add rinsed rice and 2 cups water.',
+            'Step 4: Bring to boil, cover tightly, and cook on low flame for 15 minutes until rice is fluffy.'
+          ],
+          cookingTimeMinutes: 25,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 310 * servings,
+            protein: 6.0 * servings,
+            carbs: 58.0 * servings,
+            fat: 6.5 * servings,
+            fiber: 4.8 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🍲',
+          cuisine: 'Indian',
+          dietType: 'Vegetarian',
+          isFavorite: false,
+        ),
+      },
+
+      // 5. Tomato + Potato
+      {
+        'required': ['Tomato', 'Potato'],
+        'recipe': Recipe(
+          id: 'pantry_strict_5',
+          title: 'Rustic Tomato & Potato Skillet',
+          description: 'Sliced potatoes simmered in a reduced ripe tomato glaze with simple herbs and cracked pepper.',
+          ingredients: [
+            '$servings medium Potatoes (thinly sliced)',
+            '3 ripe Tomatoes (crushed)',
+            '1 tbsp Cooking Oil',
+            'Salt and herbs to taste'
+          ],
+          steps: [
+            'Step 1: Heat oil in a skillet and arrange potato slices in a single layer.',
+            'Step 2: Fry for 4 minutes until bottom is lightly browned, then flip.',
+            'Step 3: Pour crushed tomatoes and salt over potatoes.',
+            'Step 4: Cover and simmer for 10 minutes until potatoes are soft and tomato sauce has thickened.'
+          ],
+          cookingTimeMinutes: 18,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 180 * servings,
+            protein: 3.5 * servings,
+            carbs: 30.0 * servings,
+            fat: 5.0 * servings,
+            fiber: 4.2 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🍳',
+          cuisine: 'Mediterranean',
+          dietType: 'Vegetarian',
+          isFavorite: false,
+        ),
+      },
+
+      // 6. Onion + Rice
+      {
+        'required': ['Onion', 'Rice'],
+        'recipe': Recipe(
+          id: 'pantry_strict_6',
+          title: 'Caramelized Onion Fragrant Rice',
+          description: 'A comforting, savory skillet of fluffy rice infused with sweet deeply caramelized onions and cumin.',
+          ingredients: [
+            '$servings cups Cooked Rice',
+            '2 medium Onions (thinly sliced)',
+            '1 tbsp Cooking Oil',
+            '1/2 tsp Cumin & Salt'
+          ],
+          steps: [
+            'Step 1: Heat oil in a pan on medium-low heat.',
+            'Step 2: Add sliced onions and cook slowly for 12 minutes until deeply brown and sweet.',
+            'Step 3: Add cumin and salt.',
+            'Step 4: Toss cooked rice with caramelized onions until heated through.'
+          ],
+          cookingTimeMinutes: 16,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 230 * servings,
+            protein: 3.8 * servings,
+            carbs: 45.0 * servings,
+            fat: 4.5 * servings,
+            fiber: 2.8 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🍚',
+          cuisine: 'Asian',
+          dietType: 'Vegetarian',
+          isFavorite: false,
+        ),
+      },
+
+      // 7. Eggs + Tomato + Onion
+      {
+        'required': ['Eggs', 'Tomato', 'Onion'],
+        'recipe': Recipe(
+          id: 'pantry_strict_7',
+          title: 'Tomato Onion Egg Bhurji (Scramble)',
+          description: 'Soft-scrambled eggs folded with sautéed onions, diced juicy tomatoes, and homestyle spices.',
+          ingredients: [
+            '${servings * 2} Fresh Eggs',
+            '1 large Tomato (diced)',
+            '1 medium Onion (chopped)',
+            '1 tbsp Cooking Oil or Butter',
+            'Salt and pepper'
+          ],
+          steps: [
+            'Step 1: Whisk eggs in a bowl with a pinch of salt.',
+            'Step 2: Sauté chopped onions in oil until softened, then add tomatoes and cook for 3 minutes.',
+            'Step 3: Pour whisked eggs into the pan on medium-low heat.',
+            'Step 4: Gently stir continuously until soft creamy curds form.'
+          ],
+          cookingTimeMinutes: 12,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 210 * servings,
+            protein: 14.0 * servings,
+            carbs: 6.0 * servings,
+            fat: 14.0 * servings,
+            fiber: 1.5 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🍳',
+          cuisine: 'Indian',
+          dietType: 'Non-Vegetarian',
+          isFavorite: false,
+        ),
+      },
+
+      // 8. Eggs + Rice + Onion
+      {
+        'required': ['Eggs', 'Rice', 'Onion'],
+        'recipe': Recipe(
+          id: 'pantry_strict_8',
+          title: 'Homestyle Egg Fried Rice',
+          description: 'Wok-tossed rice with scrambled eggs, sweet sautéed onions, and cracked black pepper.',
+          ingredients: [
+            '$servings cups Cooked Rice (cooled)',
+            '${servings * 2} Fresh Eggs',
+            '1 medium Onion (sliced)',
+            '1.5 tbsp Cooking Oil',
+            'Salt and black pepper'
+          ],
+          steps: [
+            'Step 1: Heat oil in a wok. Sauté onions on high heat for 3 minutes.',
+            'Step 2: Push onions to the side and crack in eggs, scrambling rapidly.',
+            'Step 3: Add cooked rice, salt, and generous black pepper.',
+            'Step 4: Toss everything vigorously on high heat for 3 minutes and serve immediately.'
+          ],
+          cookingTimeMinutes: 14,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 320 * servings,
+            protein: 13.5 * servings,
+            carbs: 46.0 * servings,
+            fat: 9.0 * servings,
+            fiber: 2.2 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🍚',
+          cuisine: 'Asian',
+          dietType: 'Non-Vegetarian',
+          isFavorite: false,
+        ),
+      },
+
+      // 9. Chicken + Tomato + Onion + Garlic
+      {
+        'required': ['Chicken', 'Tomato', 'Onion', 'Garlic'],
+        'recipe': Recipe(
+          id: 'pantry_strict_9',
+          title: 'Savory Chicken Masala Curry',
+          description: 'Tender chicken pieces simmered in a hearty garlic, onion, and fresh tomato masala gravy.',
+          ingredients: [
+            '${servings * 200}g Chicken pieces',
+            '2 ripe Tomatoes (pureed)',
+            '1 large Onion (chopped)',
+            '3 cloves Garlic (minced)',
+            '2 tbsp Cooking Oil',
+            '1 tsp Curry spices and salt'
+          ],
+          steps: [
+            'Step 1: Sauté garlic and onions in oil until deep golden.',
+            'Step 2: Add chicken pieces and sear on high heat for 5 minutes.',
+            'Step 3: Add tomato puree, spices, and salt. Cook until fragrant.',
+            'Step 4: Add 1/2 cup water, cover, and simmer for 15 minutes until chicken is cooked through.'
+          ],
+          cookingTimeMinutes: 25,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 340 * servings,
+            protein: 28.0 * servings,
+            carbs: 8.0 * servings,
+            fat: 16.0 * servings,
+            fiber: 2.0 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🍗',
+          cuisine: 'Indian',
+          dietType: 'Non-Vegetarian',
+          isFavorite: false,
+        ),
+      },
+
+      // 10. Pasta + Garlic + Butter
+      {
+        'required': ['Pasta', 'Garlic', 'Butter'],
+        'recipe': Recipe(
+          id: 'pantry_strict_10',
+          title: 'Classic Garlic Butter Pasta',
+          description: 'Al dente pasta tossed in golden melted butter, fragrant sautéed garlic, and cracked black pepper.',
+          ingredients: [
+            '${servings * 100}g Pasta (Spaghetti or Penne)',
+            '4 cloves Garlic (thinly sliced)',
+            '2 tbsp Butter',
+            'Salt and black pepper'
+          ],
+          steps: [
+            'Step 1: Boil pasta in salted water until al dente. Reserve 1/4 cup pasta water.',
+            'Step 2: Melt butter in a skillet over medium heat. Sauté sliced garlic until lightly golden.',
+            'Step 3: Add drained pasta and pasta water to the pan.',
+            'Step 4: Toss vigorously for 2 minutes until a glossy butter glaze coats the pasta.'
+          ],
+          cookingTimeMinutes: 15,
+          servings: servings,
+          spiceLevel: 'Mild',
+          nutrition: NutritionInfo(
+            calories: 310 * servings,
+            protein: 8.0 * servings,
+            carbs: 45.0 * servings,
+            fat: 11.0 * servings,
+            fiber: 2.5 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🍝',
+          cuisine: 'Italian',
+          dietType: 'Vegetarian',
+          isFavorite: false,
+        ),
+      },
+
+      // 11. Spinach + Garlic + Onion
+      {
+        'required': ['Spinach', 'Garlic', 'Onion'],
+        'recipe': Recipe(
+          id: 'pantry_strict_11',
+          title: 'Garlic Sautéed Garden Spinach',
+          description: 'Fresh vibrant spinach wilted quickly with sweet sliced onions and aromatic golden garlic.',
+          ingredients: [
+            '${servings * 150}g Fresh Spinach (washed)',
+            '1 medium Onion (sliced)',
+            '3 cloves Garlic (minced)',
+            '1 tbsp Cooking Oil',
+            'Salt and pepper'
+          ],
+          steps: [
+            'Step 1: Heat oil in a pan. Sauté garlic and onions for 3 minutes until soft.',
+            'Step 2: Add fresh spinach leaves in batches.',
+            'Step 3: Cook on medium heat for 3 minutes until wilted.',
+            'Step 4: Season with salt and pepper and serve immediately.'
+          ],
+          cookingTimeMinutes: 10,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 95 * servings,
+            protein: 4.0 * servings,
+            carbs: 8.0 * servings,
+            fat: 5.5 * servings,
+            fiber: 4.0 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🥬',
+          cuisine: 'Continental',
+          dietType: 'Vegan',
+          isFavorite: false,
+        ),
+      },
+
+      // 12. Spinach + Rice + Onion + Garlic
+      {
+        'required': ['Spinach', 'Rice', 'Onion', 'Garlic'],
+        'recipe': Recipe(
+          id: 'pantry_strict_12',
+          title: 'Aromatic Palak (Spinach) Rice',
+          description: 'Steamed rice tossed with pureed garden spinach, sautéed onions, garlic, and subtle warm spices.',
+          ingredients: [
+            '$servings cups Cooked Rice',
+            '2 cups Spinach (pureed or finely chopped)',
+            '1 medium Onion (chopped)',
+            '2 cloves Garlic (minced)',
+            '1 tbsp Oil',
+            'Salt and cumin'
+          ],
+          steps: [
+            'Step 1: Sauté cumin, garlic, and onions in oil until fragrant.',
+            'Step 2: Add spinach and cook for 4 minutes until moisture evaporates.',
+            'Step 3: Fold in cooked rice and salt gently.',
+            'Step 4: Warm through for 2 minutes and serve.'
+          ],
+          cookingTimeMinutes: 15,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 240 * servings,
+            protein: 5.2 * servings,
+            carbs: 44.0 * servings,
+            fat: 4.8 * servings,
+            fiber: 4.0 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🍚',
+          cuisine: 'Indian',
+          dietType: 'Vegetarian',
+          isFavorite: false,
+        ),
+      },
+    ];
+  }
+
   /// Get recipes based on ingredients using Groq text API with resilient smart culinary fallback
   Future<Map<String, List<Recipe>>> getRecipes({
     required List<String> ingredients,

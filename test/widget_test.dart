@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cooksmart_app/main.dart';
 import 'package:cooksmart_app/models/recipe_model.dart';
 import 'package:cooksmart_app/models/shopping_item.dart';
+import 'package:cooksmart_app/services/recipe_service.dart';
 
 /// Dynamic Data Generators for KitchenMate Test Suite
 class DynamicTestDataFactory {
@@ -266,6 +267,29 @@ void main() {
       expect(missing, equals(['Chicken', 'Cheese']));
       expect(missing.contains('Tomato'), isFalse);
       expect(missing.contains('Onion'), isFalse);
+    });
+
+    test('RecipeService getPantryStrictRecipes returns ONLY 100% matched recipes and excludes missing ingredients', () async {
+      final recipeService = RecipeService();
+      
+      // Test 1: User has Tomato, Potato, Onion, Rice
+      final pantry = ['Tomato', 'Potato', 'Onion', 'Rice'];
+      final matched = await recipeService.getPantryStrictRecipes(pantryIngredients: pantry);
+
+      expect(matched.isNotEmpty, isTrue);
+      // All matched recipes must have 100% of their required ingredients in pantry
+      for (final recipe in matched) {
+        expect(recipe.title.isNotEmpty, isTrue);
+        // None of the matched recipes should require Chicken, Egg, Pasta, Spinach, or Paneer
+        expect(recipe.title.contains('Chicken'), isFalse);
+        expect(recipe.title.contains('Egg'), isFalse);
+        expect(recipe.title.contains('Pasta'), isFalse);
+        expect(recipe.title.contains('Spinach'), isFalse);
+      }
+
+      // Test 2: User has empty pantry
+      final emptyMatched = await recipeService.getPantryStrictRecipes(pantryIngredients: []);
+      expect(emptyMatched, isEmpty);
     });
   });
 }

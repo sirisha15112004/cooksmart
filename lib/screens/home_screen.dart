@@ -53,12 +53,13 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  /// Automatically updates and reloads pantry ingredients and strictly matched recipes
   Future<void> _loadKitchenData() async {
     setState(() => _isLoadingData = true);
     final prefs = await SharedPreferences.getInstance();
     _userId = prefs.getInt('userId') ?? 0;
     _userName = prefs.getString('userName') ?? 'Chef';
-    _pantryItems = prefs.getStringList('pantry_ingredients') ?? ['Tomato', 'Potato', 'Onion', 'Rice', 'Eggs'];
+    _pantryItems = prefs.getStringList('pantry_ingredients') ?? ['Tomato', 'Potato', 'Onion', 'Rice'];
 
     // Load shopping list count
     final rawShopping = prefs.getString('shopping_list_items');
@@ -70,20 +71,18 @@ class _HomeScreenState extends State<HomeScreen> {
       } catch (_) {}
     }
 
-    // Generate dynamic recipe recommendations based on actual pantry items
+    // STRICT PANTRY MATCHING:
+    // A recipe appears ONLY if ALL required ingredients are present in My Pantry
     try {
-      final recipesMap = await _recipeService.getRecipes(
-        ingredients: _pantryItems.isNotEmpty ? _pantryItems : ['Tomato', 'Potato', 'Onion'],
+      final strictList = await _recipeService.getPantryStrictRecipes(
+        pantryIngredients: _pantryItems,
         servings: 2,
         spiceLevel: 'Medium',
       );
-      final list = <Recipe>[];
-      if (recipesMap['fullMatch'] != null) list.addAll(recipesMap['fullMatch']!);
-      if (recipesMap['partialMatch'] != null) list.addAll(recipesMap['partialMatch']!);
-      if (recipesMap['alternative'] != null) list.addAll(recipesMap['alternative']!);
-
-      _recommendedRecipes = list.take(4).toList();
-    } catch (_) {}
+      _recommendedRecipes = strictList.take(4).toList();
+    } catch (_) {
+      _recommendedRecipes = [];
+    }
 
     // Fetch stats from backend if user is logged in
     if (_userId > 0) {
@@ -99,6 +98,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (mounted) {
       setState(() => _isLoadingData = false);
+    }
+  }
+
+  void _onNavTabChanged(int index) {
+    setState(() => _activeNavIndex = index);
+    // Whenever user navigates to Home, automatically reload the latest My Pantry items
+    if (index == 0) {
+      _loadKitchenData();
     }
   }
 
@@ -197,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               // Brand Logo & Name
               GestureDetector(
-                onTap: () => setState(() => _activeNavIndex = 0),
+                onTap: () => _onNavTabChanged(0),
                 child: Row(
                   children: [
                     Container(
@@ -254,16 +261,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   IconButton(
                     icon: const Icon(Icons.search_rounded, color: Color(0xFF4B5563), size: 20),
                     tooltip: 'Search Recipes',
-                    onPressed: () => setState(() => _activeNavIndex = 3),
+                    onPressed: () => _onNavTabChanged(3),
                   ),
                   IconButton(
                     icon: const Icon(Icons.bookmark_outline_rounded, color: Color(0xFF4B5563), size: 20),
                     tooltip: 'Saved Recipes',
-                    onPressed: () => setState(() => _activeNavIndex = 6),
+                    onPressed: () => _onNavTabChanged(6),
                   ),
                   const SizedBox(width: 6),
                   GestureDetector(
-                    onTap: () => setState(() => _activeNavIndex = 7),
+                    onTap: () => _onNavTabChanged(7),
                     child: Container(
                       width: 34,
                       height: 34,
@@ -298,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: TextButton.icon(
-        onPressed: () => setState(() => _activeNavIndex = index),
+        onPressed: () => _onNavTabChanged(index),
         icon: Icon(
           icon,
           size: 16,
@@ -341,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildKitchenOverviewSection(isDesktop, isTablet),
               const SizedBox(height: 36),
 
-              // 3. Recommended for You (Dynamic Recipe Cards Grid)
+              // 3. Recommended for You (100% Pantry-Matched Recipes)
               _buildRecommendedRecipesSection(isDesktop, isTablet),
               const SizedBox(height: 36),
 
@@ -434,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // Description
         Text(
-          'Upload a photo or enter your available ingredients and discover recipes personalized for your kitchen.',
+          'Discover delicious meals that match the exact ingredients stored in your pantry.',
           style: GoogleFonts.inter(
             fontSize: 14,
             color: const Color(0xFF4B5563),
@@ -494,9 +501,9 @@ class _HomeScreenState extends State<HomeScreen> {
           runSpacing: 10,
           children: [
             ElevatedButton.icon(
-              onPressed: () => setState(() => _activeNavIndex = 1),
-              icon: const Icon(Icons.photo_camera_outlined, size: 16),
-              label: const Text('Scan Ingredients'),
+              onPressed: () => _onNavTabChanged(2),
+              icon: const Icon(Icons.inventory_2_outlined, size: 16),
+              label: const Text('Manage My Pantry'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -505,9 +512,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             OutlinedButton.icon(
-              onPressed: () => setState(() => _activeNavIndex = 3),
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Add Ingredients'),
+              onPressed: () => _onNavTabChanged(3),
+              icon: const Icon(Icons.menu_book_outlined, size: 18),
+              label: const Text('Explore Recipes'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF111827),
                 side: const BorderSide(color: Color(0xFFD1D5DB)),
@@ -522,6 +529,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeroRightVisual() {
+    final readyRecipe = _recommendedRecipes.isNotEmpty ? _recommendedRecipes.first : null;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -547,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Live Pantry Match',
+                    'Pantry-Ready Match',
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -564,7 +573,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   border: Border.all(color: const Color(0xFFE5E7EB)),
                 ),
                 child: Text(
-                  '${_pantryItems.length} items in pantry',
+                  '${_pantryItems.length} pantry items',
                   style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: const Color(0xFF4B5563)),
                 ),
               ),
@@ -573,88 +582,107 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
 
           // Recipe Preview Spotlight Card
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x05000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
+          if (readyRecipe != null) ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x05000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
                   ),
-                  child: const Center(
-                    child: Icon(Icons.soup_kitchen_outlined, color: AppTheme.primary, size: 24),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.soup_kitchen_outlined, color: AppTheme.primary, size: 24),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _recommendedRecipes.isNotEmpty
-                            ? _recommendedRecipes.first.title
-                            : 'Tomato Egg Curry',
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: const Color(0xFF111827),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          readyRecipe.title,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: const Color(0xFF111827),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF6B7280)),
-                          const SizedBox(width: 4),
-                          Text(
-                            _recommendedRecipes.isNotEmpty
-                                ? '${_recommendedRecipes.first.cookingTimeMinutes} min'
-                                : '25 min',
-                            style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF6B7280)),
-                          ),
-                          const SizedBox(width: 10),
-                          const Icon(Icons.check_circle_outline_rounded, size: 12, color: Color(0xFF16A34A)),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Matches Pantry',
-                            style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF16A34A), fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ],
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF6B7280)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${readyRecipe.cookingTimeMinutes} min',
+                              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF6B7280)),
+                            ),
+                            const SizedBox(width: 10),
+                            const Icon(Icons.check_circle_outline_rounded, size: 12, color: Color(0xFF16A34A)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Ready to Cook',
+                              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF16A34A), fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDCFCE7),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Ready to Cook',
+                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF166534)),
+                    ),
                   ),
-                  child: Text(
-                    'Best Match',
-                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primary),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.inventory_2_outlined, color: AppTheme.primary, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Add ingredients to My Pantry to unlock instant recipe recommendations.',
+                      style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF4B5563)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
 
           // Instant Action Bar
@@ -662,11 +690,11 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Available: ${_pantryItems.take(4).join(", ")}',
+                'My Pantry: ${_pantryItems.take(4).join(", ")}',
                 style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF6B7280)),
               ),
               TextButton(
-                onPressed: () => setState(() => _activeNavIndex = 2),
+                onPressed: () => _onNavTabChanged(2),
                 child: Text(
                   'Manage Pantry →',
                   style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary),
@@ -699,7 +727,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             TextButton(
-              onPressed: () => setState(() => _activeNavIndex = 2),
+              onPressed: () => _onNavTabChanged(2),
               child: Text(
                 'View Pantry →',
                 style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
@@ -722,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       value: '${_pantryItems.length}',
                       subtitle: 'In stock at home',
                       icon: Icons.inventory_2_outlined,
-                      onTap: () => setState(() => _activeNavIndex = 2),
+                      onTap: () => _onNavTabChanged(2),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -732,7 +760,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       value: '${_recommendedRecipes.length}',
                       subtitle: 'Ready to cook now',
                       icon: Icons.restaurant_menu_outlined,
-                      onTap: () => setState(() => _activeNavIndex = 3),
+                      onTap: () => _onNavTabChanged(3),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -742,7 +770,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       value: '$_savedRecipesCount',
                       subtitle: 'Favorite dishes',
                       icon: Icons.bookmark_outline_rounded,
-                      onTap: () => setState(() => _activeNavIndex = 6),
+                      onTap: () => _onNavTabChanged(6),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -752,7 +780,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       value: '$_shoppingItemsCount',
                       subtitle: 'Items to buy',
                       icon: Icons.checklist_rounded,
-                      onTap: () => setState(() => _activeNavIndex = 5),
+                      onTap: () => _onNavTabChanged(5),
                     ),
                   ),
                 ],
@@ -768,7 +796,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           value: '${_pantryItems.length}',
                           subtitle: 'In stock',
                           icon: Icons.inventory_2_outlined,
-                          onTap: () => setState(() => _activeNavIndex = 2),
+                          onTap: () => _onNavTabChanged(2),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -778,7 +806,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           value: '${_recommendedRecipes.length}',
                           subtitle: 'Ready now',
                           icon: Icons.restaurant_menu_outlined,
-                          onTap: () => setState(() => _activeNavIndex = 3),
+                          onTap: () => _onNavTabChanged(3),
                         ),
                       ),
                     ],
@@ -792,7 +820,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           value: '$_savedRecipesCount',
                           subtitle: 'Favorites',
                           icon: Icons.bookmark_outline_rounded,
-                          onTap: () => setState(() => _activeNavIndex = 6),
+                          onTap: () => _onNavTabChanged(6),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -802,7 +830,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           value: '$_shoppingItemsCount',
                           subtitle: 'To buy',
                           icon: Icons.checklist_rounded,
-                          onTap: () => setState(() => _activeNavIndex = 5),
+                          onTap: () => _onNavTabChanged(5),
                         ),
                       ),
                     ],
@@ -886,7 +914,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // -------------------------------------------------------------
-  // RECOMMENDED RECIPES SECTION (Dynamic Grid)
+  // RECOMMENDED FOR YOU (100% Strictly Matched to My Pantry)
   // -------------------------------------------------------------
   Widget _buildRecommendedRecipesSection(bool isDesktop, bool isTablet) {
     return Column(
@@ -909,15 +937,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Personalized dishes matched with your available pantry items',
+                  'Recipes matching all available ingredients in My Pantry',
                   style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B7280)),
                 ),
               ],
             ),
             TextButton(
-              onPressed: () => setState(() => _activeNavIndex = 3),
+              onPressed: () => _onNavTabChanged(2),
               child: Text(
-                'Explore All Recipes →',
+                'Update Pantry →',
                 style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
               ),
             ),
@@ -925,7 +953,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 16),
 
-        // Grid of 4 Recipe Cards
+        // Grid of 100% Matched Recipes
         _isLoadingData
             ? const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator(color: AppTheme.primary)))
             : _recommendedRecipes.isEmpty
@@ -947,7 +975,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           crossAxisCount: crossAxisCount,
                           crossAxisSpacing: 14,
                           mainAxisSpacing: 14,
-                          mainAxisExtent: 260,
+                          mainAxisExtent: 220,
                         ),
                         itemCount: _recommendedRecipes.length,
                         itemBuilder: (context, index) {
@@ -961,11 +989,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecipeCard(Recipe recipe) {
-    // Count how many ingredients are in pantry
-    final inPantryCount = recipe.ingredients.where((i) => _isInPantry(i)).length;
-    final totalCount = recipe.ingredients.length;
-    final matchPct = totalCount > 0 ? ((inPantryCount / totalCount) * 100).toInt() : 100;
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1008,7 +1031,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
             // Recipe Name
             Text(
@@ -1022,35 +1045,29 @@ class _HomeScreenState extends State<HomeScreen> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
 
-            // Match Indicator
-            Text(
-              '$inPantryCount / $totalCount Ingredients in Pantry',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: inPantryCount == totalCount ? const Color(0xFF16A34A) : const Color(0xFFD97706),
-              ),
-            ),
-            const SizedBox(height: 6),
-
-            // Match Percentage Badge
+            // Clean 100% Pantry Match Badge (No match % or missing count)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
-                color: inPantryCount == totalCount
-                    ? const Color(0xFFDCFCE7)
-                    : const Color(0xFFFEF3C7),
+                color: const Color(0xFFDCFCE7),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Text(
-                '$matchPct% Match • Easy',
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: inPantryCount == totalCount ? const Color(0xFF166534) : const Color(0xFF92400E),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check_circle_rounded, size: 11, color: Color(0xFF166534)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Ready to Cook',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF166534),
+                    ),
+                  ),
+                ],
               ),
             ),
             const Spacer(),
@@ -1082,19 +1099,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  bool _isInPantry(String ing) {
-    final lowerIng = ing.toLowerCase();
-    return _pantryItems.any((p) {
-      final lowerP = p.trim().toLowerCase();
-      if (lowerP.isEmpty) return false;
-      return lowerIng.contains(lowerP) || lowerP.contains(lowerIng);
-    });
-  }
-
   Widget _buildEmptyRecipesState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1102,17 +1110,34 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Column(
         children: [
-          const Icon(Icons.restaurant_menu_outlined, size: 36, color: Color(0xFF9CA3AF)),
-          const SizedBox(height: 12),
+          const Icon(Icons.inventory_2_outlined, size: 36, color: Color(0xFF9CA3AF)),
+          const SizedBox(height: 14),
           Text(
-            'No matching recipes yet',
-            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF111827)),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Add more ingredients to your pantry or scan a photo to get personalized recipes.',
+            'No recipes available with your current pantry ingredients.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B7280)),
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Add more ingredients to My Pantry to discover recipes you can make.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 18),
+          ElevatedButton.icon(
+            onPressed: () => _onNavTabChanged(2),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Add to My Pantry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
           ),
         ],
       ),
@@ -1174,7 +1199,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(width: 16),
           ElevatedButton(
-            onPressed: () => setState(() => _activeNavIndex = 4),
+            onPressed: () => _onNavTabChanged(4),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
@@ -1199,7 +1224,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: BottomNavigationBar(
         currentIndex: _activeNavIndex > 5 ? 0 : _activeNavIndex,
-        onTap: (i) => setState(() => _activeNavIndex = i),
+        onTap: (i) => _onNavTabChanged(i),
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
         selectedItemColor: AppTheme.primary,
