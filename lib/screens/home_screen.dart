@@ -58,8 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isLoadingData = true);
     final prefs = await SharedPreferences.getInstance();
     _userId = prefs.getInt('userId') ?? 0;
-    _userName = prefs.getString('userName') ?? 'Chef';
-    _pantryItems = prefs.getStringList('pantry_ingredients') ?? ['Tomato', 'Potato', 'Onion', 'Rice'];
+    final savedPantry = prefs.getStringList('pantry_ingredients');
+    _pantryItems = savedPantry ?? ['Tomato', 'Potato', 'Onion', 'Rice'];
 
     // Load shopping list count
     final rawShopping = prefs.getString('shopping_list_items');
@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 1:
         return const ScanIngredientsScreen();
       case 2:
-        return const PantryScreen();
+        return PantryScreen(onPantryChanged: () => _loadKitchenData());
       case 3:
         return const EnterIngredientsScreen();
       case 4:

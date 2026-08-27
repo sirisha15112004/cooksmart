@@ -6,7 +6,8 @@ import '../../theme/app_theme.dart';
 import '../recipes/recipe_results_screen.dart';
 
 class PantryScreen extends StatefulWidget {
-  const PantryScreen({super.key});
+  final VoidCallback? onPantryChanged;
+  const PantryScreen({super.key, this.onPantryChanged});
 
   @override
   State<PantryScreen> createState() => _PantryScreenState();
@@ -49,10 +50,10 @@ class _PantryScreenState extends State<PantryScreen> {
     final saved = prefs.getStringList('pantry_ingredients');
     setState(() {
       _pantryItems.clear();
-      if (saved != null && saved.isNotEmpty) {
+      if (saved != null) {
         _pantryItems.addAll(saved);
       } else {
-        _pantryItems.addAll(['Rice', 'Tomato', 'Onion', 'Potato', 'Eggs', 'Milk', 'Chicken']);
+        _pantryItems.addAll(['Tomato', 'Potato', 'Onion', 'Rice']);
         _savePantry();
       }
       _isLoading = false;
@@ -62,6 +63,7 @@ class _PantryScreenState extends State<PantryScreen> {
   Future<void> _savePantry() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('pantry_ingredients', _pantryItems);
+    widget.onPantryChanged?.call();
   }
 
   void _addIngredient(String rawName) {
