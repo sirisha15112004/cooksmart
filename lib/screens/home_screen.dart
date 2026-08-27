@@ -58,9 +58,9 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            const SizedBox(height: 24),
-            _buildHeroCard(),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
+            _buildHeroBanner(),
+            const SizedBox(height: 28),
             Text(
               "What's in your kitchen?",
               style: GoogleFonts.inter(
@@ -72,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ).animate().fadeIn(delay: 150.ms),
             const SizedBox(height: 4),
             Text(
-              'Add your ingredients to generate personalized recipes',
+              'Add ingredients and we\'ll suggest personalized recipes',
               style: GoogleFonts.inter(
                 fontSize: 13,
                 color: AppTheme.textSecondary,
@@ -80,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ).animate().fadeIn(delay: 200.ms),
             const SizedBox(height: 16),
             _buildIngredientOptions(),
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
             _buildQuickAccessSection(),
             const SizedBox(height: 24),
           ],
@@ -97,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Good ${_getGreeting()}',
+              'Good ${_getGreeting()}! 👋',
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
@@ -143,79 +143,89 @@ class _HomeScreenState extends State<HomeScreen> {
     ).animate().fadeIn();
   }
 
-  Widget _buildHeroCard() {
+  Widget _buildHeroBanner() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: AppTheme.primary,
         borderRadius: AppTheme.radius,
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primary.withValues(alpha: 0.15),
+            color: AppTheme.primary.withValues(alpha: 0.18),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'KitchenMate',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    letterSpacing: 0.3,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'KitchenMate',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: 0.3,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Smart Recipe Assistant',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              letterSpacing: -0.3,
+                const SizedBox(height: 10),
+                Text(
+                  'Smart Recipe Finder',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Scan or enter ingredients to discover delicious recipes',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.82),
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EnterIngredientsScreen()),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Get Started →',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Upload a photo or enter ingredients to discover balanced dishes tailored to your pantry.',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: Colors.white.withValues(alpha: 0.8),
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const EnterIngredientsScreen()),
-            ),
-            icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-            label: const Text('Get Started'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppTheme.textPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
-              elevation: 0,
-            ),
-          ),
+          const SizedBox(width: 8),
+          const Text('🍽️', style: TextStyle(fontSize: 54)),
         ],
       ),
     ).animate().fadeIn(delay: 100.ms);
@@ -224,11 +234,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildIngredientOptions() {
     return Row(
       children: [
-        // Enter Ingredients Card
         Expanded(
           child: _OptionCard(
-            icon: Icons.edit_note_rounded,
-            title: 'Enter Ingredients',
+            emoji: '✏️',
+            title: 'Enter\nIngredients',
             subtitle: 'Type manually',
             onTap: () => Navigator.push(
               context,
@@ -237,11 +246,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        // Scan Ingredients Card
         Expanded(
           child: _OptionCard(
-            icon: Icons.image_outlined,
-            title: 'Scan Ingredients',
+            emoji: '📷',
+            title: 'Scan\nIngredients',
             subtitle: 'Upload photo',
             onTap: () => Navigator.push(
               context,
@@ -266,13 +274,13 @@ class _HomeScreenState extends State<HomeScreen> {
             letterSpacing: -0.2,
           ),
         ),
-        const SizedBox(height: 14),
-        // Row 1: Pantry & Shopping List
+        const SizedBox(height: 12),
+        // Row 1: Pantry (🫙) & Shopping List (📝) in clean white cards
         Row(
           children: [
             Expanded(
               child: _QuickActionCard(
-                icon: Icons.inventory_2_outlined,
+                emoji: '🫙',
                 title: 'Pantry',
                 subtitle: 'Items at home',
                 onTap: () => Navigator.push(
@@ -284,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _QuickActionCard(
-                icon: Icons.checklist_rounded,
+                emoji: '📝',
                 title: 'Shopping List',
                 subtitle: 'Items to buy',
                 onTap: () => Navigator.push(
@@ -296,12 +304,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        // Row 2: Favorites, Meal Plan, Profile in clean uniform white cards
+        // Row 2: Favorites (❤️), Meal Plan (📅), Profile (👤) in matching white cards (no solid color fills!)
         Row(
           children: [
             Expanded(
               child: _QuickActionCard(
-                icon: Icons.bookmark_outline_rounded,
+                emoji: '❤️',
                 title: 'Favorites',
                 subtitle: 'Saved dishes',
                 onTap: () => setState(() => _currentIndex = 1),
@@ -310,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _QuickActionCard(
-                icon: Icons.calendar_today_outlined,
+                emoji: '📅',
                 title: 'Meal Plan',
                 subtitle: 'Weekly schedule',
                 onTap: () => setState(() => _currentIndex = 2),
@@ -319,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _QuickActionCard(
-                icon: Icons.person_outline_rounded,
+                emoji: '👤',
                 title: 'Profile',
                 subtitle: 'Account info',
                 onTap: () => setState(() => _currentIndex = 3),
@@ -333,9 +341,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomNav() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.cardBg,
-        border: const Border(top: BorderSide(color: AppTheme.divider, width: 1)),
+        border: Border(top: BorderSide(color: AppTheme.divider, width: 1)),
       ),
       child: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -412,12 +420,11 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _OptionCard extends StatelessWidget {
-  final IconData icon;
-  final String title, subtitle;
+  final String emoji, title, subtitle;
   final VoidCallback onTap;
 
   const _OptionCard({
-    required this.icon,
+    required this.emoji,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -428,7 +435,7 @@ class _OptionCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppTheme.cardBg,
           borderRadius: AppTheme.radius,
@@ -438,33 +445,23 @@ class _OptionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.divider),
-              ),
-              child: Center(
-                child: Icon(icon, color: AppTheme.primary, size: 20),
-              ),
-            ),
-            const SizedBox(height: 14),
+            Text(emoji, style: const TextStyle(fontSize: 26)),
+            const SizedBox(height: 10),
             Text(
               title,
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,
+                height: 1.25,
                 letterSpacing: -0.2,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               subtitle,
               style: GoogleFonts.inter(
-                fontSize: 12,
+                fontSize: 11,
                 color: AppTheme.textSecondary,
               ),
             ),
@@ -476,12 +473,11 @@ class _OptionCard extends StatelessWidget {
 }
 
 class _QuickActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title, subtitle;
+  final String emoji, title, subtitle;
   final VoidCallback onTap;
 
   const _QuickActionCard({
-    required this.icon,
+    required this.emoji,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -492,7 +488,7 @@ class _QuickActionCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: BoxDecoration(
           color: AppTheme.cardBg,
           borderRadius: AppTheme.radius,
@@ -502,8 +498,8 @@ class _QuickActionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: AppTheme.primary, size: 20),
-            const SizedBox(height: 10),
+            Text(emoji, style: const TextStyle(fontSize: 22)),
+            const SizedBox(height: 8),
             Text(
               title,
               style: GoogleFonts.inter(

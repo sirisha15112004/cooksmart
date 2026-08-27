@@ -17,19 +17,19 @@ class _PantryScreenState extends State<PantryScreen> {
   final TextEditingController _addController = TextEditingController();
   bool _isLoading = true;
 
-  static const List<String> _popularStaples = [
-    'Rice',
-    'Tomato',
-    'Onion',
-    'Potato',
-    'Eggs',
-    'Milk',
-    'Chicken',
-    'Garlic',
-    'Butter',
-    'Cheese',
-    'Pasta',
-    'Spinach',
+  static const List<Map<String, String>> _popularStaples = [
+    {'name': 'Rice', 'emoji': '🍚'},
+    {'name': 'Tomato', 'emoji': '🍅'},
+    {'name': 'Onion', 'emoji': '🧅'},
+    {'name': 'Potato', 'emoji': '🥔'},
+    {'name': 'Eggs', 'emoji': '🥚'},
+    {'name': 'Milk', 'emoji': '🥛'},
+    {'name': 'Chicken', 'emoji': '🍗'},
+    {'name': 'Garlic', 'emoji': '🧄'},
+    {'name': 'Butter', 'emoji': '🧈'},
+    {'name': 'Cheese', 'emoji': '🧀'},
+    {'name': 'Pasta', 'emoji': '🍝'},
+    {'name': 'Spinach', 'emoji': '🥬'},
   ];
 
   @override
@@ -137,6 +137,30 @@ class _PantryScreenState extends State<PantryScreen> {
     );
   }
 
+  String _getFoodEmoji(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('rice')) return '🍚';
+    if (lower.contains('tomato')) return '🍅';
+    if (lower.contains('onion')) return '🧅';
+    if (lower.contains('potato')) return '🥔';
+    if (lower.contains('egg')) return '🥚';
+    if (lower.contains('milk')) return '🥛';
+    if (lower.contains('chicken')) return '🍗';
+    if (lower.contains('garlic')) return '🧄';
+    if (lower.contains('butter')) return '🧈';
+    if (lower.contains('cheese')) return '🧀';
+    if (lower.contains('pasta') || lower.contains('noodle')) return '🍝';
+    if (lower.contains('spinach') || lower.contains('leaf')) return '🥬';
+    if (lower.contains('carrot')) return '🥕';
+    if (lower.contains('pepper') || lower.contains('capsicum')) return '🫑';
+    if (lower.contains('chili')) return '🌶️';
+    if (lower.contains('fish') || lower.contains('seafood')) return '🐟';
+    if (lower.contains('bread')) return '🍞';
+    if (lower.contains('oil')) return '🫒';
+    if (lower.contains('salt') || lower.contains('sugar')) return '🧂';
+    return '🥫';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -188,15 +212,15 @@ class _PantryScreenState extends State<PantryScreen> {
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: AppTheme.surface,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppTheme.divider),
             ),
             child: const Center(
-              child: Icon(Icons.inventory_2_outlined, color: AppTheme.primary, size: 20),
+              child: Text('🫙', style: TextStyle(fontSize: 22)),
             ),
           ),
           const SizedBox(width: 14),
@@ -298,12 +322,15 @@ class _PantryScreenState extends State<PantryScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: _popularStaples.map((item) {
+                final name = item['name']!;
+                final emoji = item['emoji']!;
                 final alreadyInPantry =
-                    _pantryItems.any((p) => p.toLowerCase() == item.toLowerCase());
+                    _pantryItems.any((p) => p.toLowerCase() == name.toLowerCase());
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ActionChip(
-                    label: Text(item),
+                    avatar: Text(emoji, style: const TextStyle(fontSize: 14)),
+                    label: Text(name),
                     backgroundColor: alreadyInPantry ? AppTheme.surface : AppTheme.cardBg,
                     side: BorderSide(
                       color: alreadyInPantry ? AppTheme.divider : AppTheme.divider,
@@ -315,7 +342,7 @@ class _PantryScreenState extends State<PantryScreen> {
                       fontWeight: alreadyInPantry ? FontWeight.w400 : FontWeight.w500,
                       color: alreadyInPantry ? AppTheme.textTertiary : AppTheme.textPrimary,
                     ),
-                    onPressed: alreadyInPantry ? null : () => _addIngredient(item),
+                    onPressed: alreadyInPantry ? null : () => _addIngredient(name),
                   ),
                 );
               }).toList(),
@@ -333,6 +360,8 @@ class _PantryScreenState extends State<PantryScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final item = _pantryItems[index];
+        final emoji = _getFoodEmoji(item);
+
         return Container(
           decoration: BoxDecoration(
             color: AppTheme.cardBg,
@@ -343,15 +372,15 @@ class _PantryScreenState extends State<PantryScreen> {
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
             leading: Container(
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppTheme.divider),
               ),
-              child: const Center(
-                child: Icon(Icons.check_rounded, color: AppTheme.primary, size: 16),
+              child: Center(
+                child: Text(emoji, style: const TextStyle(fontSize: 18)),
               ),
             ),
             title: Text(
@@ -393,7 +422,7 @@ class _PantryScreenState extends State<PantryScreen> {
                 border: Border.all(color: AppTheme.divider),
               ),
               child: const Center(
-                child: Icon(Icons.inventory_2_outlined, color: AppTheme.textSecondary, size: 26),
+                child: Text('🫙', style: TextStyle(fontSize: 28)),
               ),
             ),
             const SizedBox(height: 16),

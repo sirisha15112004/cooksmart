@@ -218,7 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Thank you for your feedback!',
+                                'Thank you for your feedback! 🎉',
                                 style: GoogleFonts.inter(fontWeight: FontWeight.w500),
                               ),
                               backgroundColor: AppTheme.textPrimary,
@@ -395,7 +395,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Expanded(
             child: _StatItem(
-              icon: Icons.bookmark_outline_rounded,
+              emoji: '❤️',
               label: 'Favorites',
               value: '$_favCount',
             ),
@@ -403,7 +403,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(width: 1, height: 36, color: AppTheme.divider),
           Expanded(
             child: _StatItem(
-              icon: Icons.calendar_today_outlined,
+              emoji: '📅',
               label: 'Planned',
               value: '$_plannedDays',
             ),
@@ -411,7 +411,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(width: 1, height: 36, color: AppTheme.divider),
           Expanded(
             child: _StatItem(
-              icon: Icons.restaurant_menu_rounded,
+              emoji: '🍳',
               label: 'Saved',
               value: '$_recipesCount',
             ),
@@ -423,15 +423,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _StatItem extends StatelessWidget {
-  final IconData icon;
-  final String label, value;
-  const _StatItem({required this.icon, required this.label, required this.value});
+  final String emoji, label, value;
+  const _StatItem({required this.emoji, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: AppTheme.primary, size: 18),
+        Text(emoji, style: const TextStyle(fontSize: 20)),
         const SizedBox(height: 4),
         Text(
           value,

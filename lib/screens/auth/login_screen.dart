@@ -15,10 +15,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController    = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _isLoading       = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -35,17 +35,16 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       final res = await ApiService.login(
-        email:    _emailController.text.trim(),
+        email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       if (res['statusCode'] == 200) {
-        // Save user info locally
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isLoggedIn', true);
-        await prefs.setInt('userId',      res['user']['id']);
+        await prefs.setInt('userId', res['user']['id']);
         await prefs.setString('userName', res['user']['name']);
-        await prefs.setString('userEmail',res['user']['email']);
+        await prefs.setString('userEmail', res['user']['email']);
 
         if (mounted) {
           Navigator.pushReplacement(
@@ -65,7 +64,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppTheme.errorColor),
+      SnackBar(
+        content: Text(msg, style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+        backgroundColor: AppTheme.errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
+      ),
     );
   }
 
@@ -80,115 +84,175 @@ class _LoginScreenState extends State<LoginScreen> {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFF1F8E9), AppTheme.surface],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFFF4F9F5),
+              Color(0xFFEBF4EE),
+              Color(0xFFF9FAF9),
+            ],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
+                constraints: const BoxConstraints(maxWidth: 420),
                 child: Container(
                   padding: isDesktop
-                      ? const EdgeInsets.symmetric(horizontal: 36, vertical: 40)
-                      : const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  decoration: isDesktop
-                      ? BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
+                      ? const EdgeInsets.symmetric(horizontal: 32, vertical: 36)
+                      : const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardBg,
+                    borderRadius: AppTheme.radius,
+                    border: Border.all(color: AppTheme.divider),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Distinctive KitchenMate Logo Emblem
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary,
+                          borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.06),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
+                              color: AppTheme.primary.withValues(alpha: 0.25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
                             ),
                           ],
-                        )
-                      : null,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 64, height: 64,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary,
-                            borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.restaurant_menu_rounded,
+                            color: Colors.white,
+                            size: 28,
                           ),
-                          child: const Center(
-                              child: Text('🍳', style: TextStyle(fontSize: 32))),
-                        ).animate().fadeIn().scale(),
-                      ),
+                        ),
+                      ).animate().fadeIn().scale(),
+                      const SizedBox(height: 16),
+
+                      // Center-aligned Heading & Subtext
+                      Text(
+                        'Welcome back! 👋',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimary,
+                          letterSpacing: -0.4,
+                        ),
+                      ).animate().fadeIn(delay: 100.ms),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Sign in to continue discovering recipes',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ).animate().fadeIn(delay: 150.ms),
                       const SizedBox(height: 24),
-                      Text('Welcome\nback! 👋',
-                          style: Theme.of(context).textTheme.displayLarge)
-                          .animate().fadeIn(delay: 100.ms).slideX(begin: -0.2),
-                      const SizedBox(height: 8),
-                      Text('Sign in to continue cooking',
-                          style: Theme.of(context).textTheme.bodyMedium)
-                          .animate().fadeIn(delay: 200.ms),
-                      const SizedBox(height: 36),
+
+                      // Email Input Field
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textPrimary),
                         decoration: const InputDecoration(
-                          labelText: 'Email',
-                          prefixIcon: Icon(Icons.mail_outline_rounded),
+                          labelText: 'Email Address',
+                          prefixIcon: Icon(Icons.mail_outline_rounded, size: 18),
                         ),
-                      ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2),
-                      const SizedBox(height: 16),
+                      ).animate().fadeIn(delay: 200.ms),
+                      const SizedBox(height: 14),
+
+                      // Password Input Field
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
+                        style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textPrimary),
                         decoration: InputDecoration(
                           labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18),
                           suffixIcon: IconButton(
-                            icon: Icon(_obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined),
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              size: 18,
+                              color: AppTheme.textSecondary,
+                            ),
                             onPressed: () =>
                                 setState(() => _obscurePassword = !_obscurePassword),
                           ),
                         ),
-                      ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2),
-                      const SizedBox(height: 32),
+                      ).animate().fadeIn(delay: 250.ms),
+                      const SizedBox(height: 24),
+
+                      // Sign In Button
                       SizedBox(
                         width: double.infinity,
-                        height: 56,
+                        height: 48,
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _login,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
+                          ),
                           child: _isLoading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2)
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
                               : const Text('Sign In'),
                         ),
-                      ).animate().fadeIn(delay: 500.ms),
-                      const SizedBox(height: 24),
+                      ).animate().fadeIn(delay: 300.ms),
+                      const SizedBox(height: 20),
+
+                      // Sign Up Prompt
                       Wrap(
                         alignment: WrapAlignment.center,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Text("Don't have an account? ",
-                              style: Theme.of(context).textTheme.bodyMedium),
+                          Text(
+                            "Don't have an account? ",
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
                           GestureDetector(
-                            onTap: () => Navigator.push(context,
-                                MaterialPageRoute(
-                                    builder: (_) => const SignupScreen())),
-                            child: Text('Sign Up',
-                                style: GoogleFonts.dmSans(
-                                  color: AppTheme.primary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                )),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const SignupScreen()),
+                            ),
+                            child: Text(
+                              'Sign Up',
+                              style: GoogleFonts.inter(
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                         ],
-                      ).animate().fadeIn(delay: 600.ms),
+                      ).animate().fadeIn(delay: 350.ms),
                     ],
                   ),
                 ),

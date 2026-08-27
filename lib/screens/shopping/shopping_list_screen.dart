@@ -210,15 +210,15 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: AppTheme.surface,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: AppTheme.divider),
                 ),
                 child: const Center(
-                  child: Icon(Icons.checklist_rounded, color: AppTheme.primary, size: 20),
+                  child: Text('📝', style: TextStyle(fontSize: 22)),
                 ),
               ),
               const SizedBox(width: 14),
@@ -387,7 +387,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                 border: Border.all(color: AppTheme.divider),
               ),
               child: const Center(
-                child: Icon(Icons.checklist_rounded, color: AppTheme.textSecondary, size: 26),
+                child: Text('📝', style: TextStyle(fontSize: 28)),
               ),
             ),
             const SizedBox(height: 16),
