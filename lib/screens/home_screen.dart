@@ -137,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('AI-Powered\nRecipe Finder',
+                Text('CookSmart\nRecipe Finder',
                     style: GoogleFonts.playfairDisplay(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
@@ -201,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _OptionCard(
             emoji: '📷',
             title: 'Scan\nIngredients',
-            subtitle: 'Use camera AI',
+            subtitle: 'Scan with photo',
             color: const Color(0xFFFFF3E0),
             borderColor: AppTheme.accent.withValues(alpha: 0.4),
             onTap: () => Navigator.push(

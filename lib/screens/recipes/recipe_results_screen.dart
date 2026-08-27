@@ -152,7 +152,7 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen>
           ),
           const Spacer(),
           Text(
-            'AI filtered',
+            'Diet filtered',
             style: GoogleFonts.dmSans(
               color: _dietColor.withValues(alpha: 0.7),
               fontSize: 12,

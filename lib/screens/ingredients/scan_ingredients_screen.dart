@@ -262,7 +262,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
                       color: AppTheme.textPrimary,
                     )),
                 const SizedBox(height: 6),
-                Text('AI will detect ingredients automatically',
+                Text('Detects ingredients automatically from photo',
                     style: GoogleFonts.dmSans(
                         color: AppTheme.textSecondary, fontSize: 13)),
               ],
@@ -367,7 +367,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
                 color: AppTheme.textPrimary,
               )),
           const SizedBox(height: 6),
-          Text('AI is identifying items in the image',
+          Text('Identifying food items from the image',
               style: GoogleFonts.dmSans(
                   color: AppTheme.textSecondary, fontSize: 13)),
         ],
