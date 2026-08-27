@@ -281,103 +281,108 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
             ),
           ),
         ],
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        body: Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          _recipe.title,
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary,
-                            letterSpacing: -0.3,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _recipe.title,
+                              style: GoogleFonts.playfairDisplay(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textPrimary,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.cardBg,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppTheme.divider),
-                        ),
-                        child: Text(
-                          _recipe.cuisine,
-                          style: GoogleFonts.inter(
-                            color: AppTheme.textSecondary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 11,
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.cardBg,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.divider),
+                            ),
+                            child: Text(
+                              _recipe.cuisine,
+                              style: GoogleFonts.inter(
+                                color: AppTheme.textSecondary,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _recipe.description,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: AppTheme.textSecondary,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _MetaPill(icon: Icons.schedule_rounded, text: '${_recipe.cookingTimeMinutes} min'),
-                        const SizedBox(width: 8),
-                        _MetaPill(icon: Icons.people_outline_rounded, text: '${_recipe.servings} servings'),
-                        const SizedBox(width: 8),
-                        _MetaPill(icon: Icons.local_fire_department_outlined, text: _recipe.spiceLevel),
-                        const SizedBox(width: 8),
-                        _MetaPill(icon: Icons.whatshot_outlined, text: '${_recipe.nutrition.calories} kcal'),
-                        if (_recipe.dietType != null) ...[
-                          const SizedBox(width: 8),
-                          _MetaPill(icon: Icons.eco_outlined, text: _recipe.dietType!),
                         ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TabBar(
-                    controller: _tabs,
-                    labelColor: AppTheme.primary,
-                    unselectedLabelColor: AppTheme.textSecondary,
-                    indicatorColor: AppTheme.primary,
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
-                    unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 13),
-                    tabs: const [
-                      Tab(text: 'Ingredients'),
-                      Tab(text: 'Steps'),
-                      Tab(text: 'Nutrition'),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _recipe.description,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _MetaPill(icon: Icons.schedule_rounded, text: '${_recipe.cookingTimeMinutes} min'),
+                            const SizedBox(width: 8),
+                            _MetaPill(icon: Icons.people_outline_rounded, text: '${_recipe.servings} servings'),
+                            const SizedBox(width: 8),
+                            _MetaPill(icon: Icons.local_fire_department_outlined, text: _recipe.spiceLevel),
+                            const SizedBox(width: 8),
+                            _MetaPill(icon: Icons.whatshot_outlined, text: '${_recipe.nutrition.calories} kcal'),
+                            if (_recipe.dietType != null) ...[
+                              const SizedBox(width: 8),
+                              _MetaPill(icon: Icons.eco_outlined, text: _recipe.dietType!),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TabBar(
+                        controller: _tabs,
+                        labelColor: AppTheme.primary,
+                        unselectedLabelColor: AppTheme.textSecondary,
+                        indicatorColor: AppTheme.primary,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                        unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 13),
+                        tabs: const [
+                          Tab(text: 'Ingredients'),
+                          Tab(text: 'Steps'),
+                          Tab(text: 'Nutrition'),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabs,
+                    children: [
+                      _buildIngredients(),
+                      _buildSteps(),
+                      _buildNutrition(),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabs,
-                children: [
-                  _buildIngredients(),
-                  _buildSteps(),
-                  _buildNutrition(),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

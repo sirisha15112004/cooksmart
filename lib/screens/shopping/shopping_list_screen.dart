@@ -164,7 +164,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     final completedCount = _items.where((i) => i.isCompleted).length;
 
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: const Text('Shopping List'),
         actions: [
@@ -178,15 +178,20 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-          : Column(
-              children: [
-                _buildHeaderCard(totalCount, completedCount),
-                _buildAddInput(),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: _items.isEmpty ? _buildEmptyState() : _buildList(),
+          : Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: Column(
+                  children: [
+                    _buildHeaderCard(totalCount, completedCount),
+                    _buildAddInput(),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: _items.isEmpty ? _buildEmptyState() : _buildList(),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
     );
   }

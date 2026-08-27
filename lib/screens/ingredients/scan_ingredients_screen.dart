@@ -216,29 +216,34 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: const Text('Scan Ingredients'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_imageBytes == null) ...[
-              _buildUploadPlaceholder(),
-            ] else ...[
-              _buildImagePreviewCard(),
-            ],
-            if (_isDetecting) ...[
-              const SizedBox(height: 16),
-              _buildDetectingCard(),
-            ],
-            if (_hasAnalyzed) ...[
-              const SizedBox(height: 20),
-              _buildDetectionResults(),
-            ],
-          ],
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_imageBytes == null) ...[
+                  _buildUploadPlaceholder(),
+                ] else ...[
+                  _buildImagePreviewCard(),
+                ],
+                if (_isDetecting) ...[
+                  const SizedBox(height: 16),
+                  _buildDetectingCard(),
+                ],
+                if (_hasAnalyzed) ...[
+                  const SizedBox(height: 20),
+                  _buildDetectionResults(),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -114,51 +114,54 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-          : _favorites.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: AppTheme.cardBg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppTheme.divider),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.bookmark_outline_rounded, color: AppTheme.textSecondary, size: 26),
+          : Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 900),
+                child: _favorites.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.cardBg,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppTheme.divider),
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.bookmark_outline_rounded, color: AppTheme.textSecondary, size: 26),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Saved Recipes',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Tap the bookmark icon on any recipe detail to save your favorite dishes here.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No Saved Recipes',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Tap the bookmark icon on any recipe detail to save your favorite dishes here.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadFavorites,
-                  color: AppTheme.primary,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                    itemCount: _favorites.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadFavorites,
+                        color: AppTheme.primary,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                          itemCount: _favorites.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (ctx, i) => GestureDetector(
                       onTap: () async {
                         await Navigator.push(
@@ -224,6 +227,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     ),
                   ),
                 ),
+              ),
+            ),
     );
   }
 }

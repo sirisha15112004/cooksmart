@@ -164,7 +164,7 @@ class _PantryScreenState extends State<PantryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: const Text('My Pantry'),
         actions: [
@@ -185,15 +185,20 @@ class _PantryScreenState extends State<PantryScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-          : Column(
-              children: [
-                _buildHeaderCard(),
-                _buildAddInput(),
-                _buildPopularSuggestions(),
-                Expanded(
-                  child: _pantryItems.isEmpty ? _buildEmptyState() : _buildPantryList(),
+          : Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: Column(
+                  children: [
+                    _buildHeaderCard(),
+                    _buildAddInput(),
+                    _buildPopularSuggestions(),
+                    Expanded(
+                      child: _pantryItems.isEmpty ? _buildEmptyState() : _buildPantryList(),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
     );
   }

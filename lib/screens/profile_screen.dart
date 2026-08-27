@@ -304,42 +304,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  _buildAvatar(),
-                  const SizedBox(height: 24),
-                  _buildStatsCard(),
-                  const SizedBox(height: 20),
-                  _buildMenuItems(),
-                  const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _logout,
-                      icon: const Icon(Icons.logout_rounded, color: AppTheme.errorColor, size: 18),
-                      label: Text(
-                        'Log Out',
-                        style: GoogleFonts.inter(
-                          color: AppTheme.errorColor,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
+          : Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 700),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      _buildAvatar(),
+                      const SizedBox(height: 24),
+                      _buildStatsCard(),
+                      const SizedBox(height: 20),
+                      _buildMenuItems(),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _logout,
+                          icon: const Icon(Icons.logout_rounded, color: AppTheme.errorColor, size: 18),
+                          label: Text(
+                            'Log Out',
+                            style: GoogleFonts.inter(
+                              color: AppTheme.errorColor,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppTheme.divider),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
+                          ),
                         ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppTheme.divider),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
+                      const SizedBox(height: 16),
+                      Text(
+                        'KitchenMate v1.0.0',
+                        style: GoogleFonts.inter(color: AppTheme.textTertiary, fontSize: 12),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'KitchenMate v1.0.0',
-                    style: GoogleFonts.inter(color: AppTheme.textTertiary, fontSize: 12),
-                  ),
-                ],
+                ),
               ),
             ),
     );

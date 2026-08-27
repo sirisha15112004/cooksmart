@@ -107,20 +107,25 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen>
           ? _buildLoading()
           : _error != null
               ? _buildError()
-              : Column(
-                  children: [
-                    if (widget.dietType != null) _buildDietBanner(),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _buildRecipeList(_recipes['fullMatch'] ?? []),
-                          _buildRecipeList(_recipes['partialMatch'] ?? []),
-                          _buildRecipeList(_recipes['alternative'] ?? []),
-                        ],
-                      ),
+              : Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 1000),
+                    child: Column(
+                      children: [
+                        if (widget.dietType != null) _buildDietBanner(),
+                        Expanded(
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              _buildRecipeList(_recipes['fullMatch'] ?? []),
+                              _buildRecipeList(_recipes['partialMatch'] ?? []),
+                              _buildRecipeList(_recipes['alternative'] ?? []),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
     );
   }

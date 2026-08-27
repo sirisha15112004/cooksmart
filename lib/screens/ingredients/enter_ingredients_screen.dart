@@ -79,65 +79,70 @@ class _EnterIngredientsScreenState extends State<EnterIngredientsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(title: const Text('Enter Ingredients')),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSearchBar(),
-                  const SizedBox(height: 20),
-                  if (_ingredients.isNotEmpty) ...[
-                    Row(
-                      children: [
-                        Text(
-                          'Added Ingredients (${_ingredients.length})',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () => setState(() => _ingredients.clear()),
-                          child: Text(
-                            'Clear all',
-                            style: GoogleFonts.inter(
-                              color: AppTheme.errorColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSearchBar(),
+                      const SizedBox(height: 20),
+                      if (_ingredients.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            Text(
+                              'Added Ingredients (${_ingredients.length})',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
                             ),
-                          ),
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: () => setState(() => _ingredients.clear()),
+                              child: Text(
+                                'Clear all',
+                                style: GoogleFonts.inter(
+                                  color: AppTheme.errorColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 10),
+                        _buildIngredientChips(),
+                        const SizedBox(height: 24),
                       ],
-                    ),
-                    const SizedBox(height: 10),
-                    _buildIngredientChips(),
-                    const SizedBox(height: 24),
-                  ],
-                  Text(
-                    'Quick Add Staples',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                    ),
+                      Text(
+                        'Quick Add Staples',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildCommonIngredients(),
+                      const SizedBox(height: 28),
+                      _buildSettings(),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  _buildCommonIngredients(),
-                  const SizedBox(height: 28),
-                  _buildSettings(),
-                ],
+                ),
               ),
-            ),
+              _buildBottomButton(),
+            ],
           ),
-          _buildBottomButton(),
-        ],
+        ),
       ),
     );
   }

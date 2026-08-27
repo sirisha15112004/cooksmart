@@ -145,17 +145,22 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: const Text('Meal Planner'),
         automaticallyImplyLeading: false,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildCalendar(),
-            _buildDayPlan(),
-          ],
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildCalendar(),
+                _buildDayPlan(),
+              ],
+            ),
+          ),
         ),
       ),
     );
