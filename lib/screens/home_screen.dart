@@ -457,14 +457,21 @@ class _HomeScreenState extends State<HomeScreen> {
         else if (_recommendedRecipes.isEmpty)
           _buildNoRecipesCard()
         else
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _recommendedRecipes.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 14),
-            itemBuilder: (context, index) {
-              return _buildRecipeCard(_recommendedRecipes[index]);
-            },
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _recommendedRecipes.map((recipe) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 14),
+                  child: SizedBox(
+                    width: 320,
+                    child: _buildRecipeCard(recipe),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
       ],
     ).animate().fadeIn(delay: 300.ms);
@@ -579,8 +586,8 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               // Recipe Image / Visual Emblem
               Container(
-                width: 52,
-                height: 52,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(10),
@@ -589,11 +596,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Center(
                   child: Text(
                     _getCuisineEmoji(recipe.cuisine),
-                    style: const TextStyle(fontSize: 26),
+                    style: const TextStyle(fontSize: 24),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
 
               // Title and Description
               Expanded(
@@ -603,20 +610,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       recipe.title,
                       style: GoogleFonts.inter(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textPrimary,
                         letterSpacing: -0.2,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (recipe.description.isNotEmpty) ...[
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       Text(
                         recipe.description,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: AppTheme.textSecondary,
                           height: 1.3,
                         ),
@@ -628,10 +637,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Favorite Button
               IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 icon: Icon(
                   isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                   color: isFav ? AppTheme.errorColor : AppTheme.textTertiary,
-                  size: 22,
+                  size: 20,
                 ),
                 onPressed: () => _toggleFavorite(recipe),
                 tooltip: isFav ? 'Remove from favorites' : 'Save to favorites',
@@ -654,28 +665,32 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF16A34A)),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Uses ${matched.length} of your pantry ingredients',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF166534),
+                    const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF16A34A)),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'Uses ${matched.length} pantry ingredients',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF166534),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
                 if (matched.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: matched.map((ing) {
+                    spacing: 5,
+                    runSpacing: 3,
+                    children: matched.take(3).map((ing) {
                       return Text(
                         '✓ $ing',
                         style: GoogleFonts.inter(
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w500,
                           color: const Color(0xFF374151),
                         ),
@@ -684,28 +699,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
                 if (missing.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
-                    'Missing (${missing.length}):',
+                    'Missing: ${missing.take(2).map((m) => m).join(', ')}${missing.length > 2 ? ' +${missing.length - 2} more' : ''}',
                     style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF9CA3AF),
+                      fontSize: 10,
+                      color: const Color(0xFF6B7280),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: missing.take(3).map((ing) {
-                      return Text(
-                        '• $ing',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: const Color(0xFF6B7280),
-                        ),
-                      );
-                    }).toList(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ],
@@ -719,25 +721,25 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.local_fire_department_outlined, size: 16, color: Color(0xFFEA580C)),
-                  const SizedBox(width: 4),
+                  const Icon(Icons.local_fire_department_outlined, size: 15, color: Color(0xFFEA580C)),
+                  const SizedBox(width: 3),
                   Text(
                     '${recipe.nutrition.calories} kcal',
                     style: GoogleFonts.inter(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text('•', style: TextStyle(color: AppTheme.textTertiary)),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.schedule_rounded, size: 14, color: AppTheme.textSecondary),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
+                  Text('•', style: TextStyle(color: AppTheme.textTertiary, fontSize: 11)),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.schedule_rounded, size: 13, color: AppTheme.textSecondary),
+                  const SizedBox(width: 3),
                   Text(
                     '${recipe.cookingTimeMinutes}m',
                     style: GoogleFonts.inter(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: AppTheme.textSecondary,
                     ),
                   ),
@@ -751,10 +753,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ).then((_) => _loadPantryRecommendations());
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                 ),
-                child: const Text('View Recipe', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                child: const Text('View Recipe', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
