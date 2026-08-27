@@ -11,7 +11,8 @@ import '../pantry/pantry_screen.dart';
 import '../recipes/recipe_results_screen.dart';
 
 class ScanIngredientsScreen extends StatefulWidget {
-  const ScanIngredientsScreen({super.key});
+  final bool autoOpenCamera;
+  const ScanIngredientsScreen({super.key, this.autoOpenCamera = true});
 
   @override
   State<ScanIngredientsScreen> createState() =>
@@ -39,6 +40,16 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     {'label': 'Diabetic-Friendly', 'emoji': '🩺'},
     {'label': 'Weight-Loss', 'emoji': '⚖️'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoOpenCamera) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _pickImage(ImageSource.camera);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -256,88 +267,98 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   }
 
   Widget _buildImageCard() {
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 220, maxHeight: 380),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          if (_imageBytes != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Image.memory(
-                _imageBytes!,
-                fit: BoxFit.contain,
-                width: double.infinity,
-                alignment: Alignment.center,
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 36),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Point Camera or Upload Photo',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Point your device camera at ingredients or upload an image to scan instantly.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
-              ),
+    return GestureDetector(
+      onTap: _imageBytes == null ? () => _pickImage(ImageSource.camera) : null,
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 220, maxHeight: 380),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(24),
+          border: _imageBytes == null
+              ? Border.all(
+                  color: AppTheme.primary.withValues(alpha: 0.6), width: 2)
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
             ),
-          if (_imageBytes != null)
-            Positioned(
-              top: 12,
-              right: 12,
-              child: GestureDetector(
-                onTap: _resetScan,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (_imageBytes != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.memory(
+                  _imageBytes!,
+                  fit: BoxFit.contain,
+                  width: double.infinity,
+                  alignment: Alignment.center,
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.25),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppTheme.primary, width: 2),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.camera_alt_rounded,
+                            color: Colors.white, size: 38),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Tap to Open Camera & Scan',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Point camera at your ingredients to detect them automatically',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-        ],
+            if (_imageBytes != null)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: GestureDetector(
+                  onTap: _resetScan,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close_rounded,
+                        color: Colors.white, size: 18),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
