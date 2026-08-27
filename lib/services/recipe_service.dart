@@ -227,34 +227,53 @@ class RecipeService {
 
           if (totalSampled > 25) {
             final whiteRatio = whiteOrTransparent / totalSampled;
-            final isPlatterScene = whiteRatio > 0.18 || (whiteRatio > 0.08 && ivoryCauliflower > 8);
-            final isGardenBasketScene = whiteRatio < 0.12 && (outdoorGreen > 25 || cornCob > 5 || darkPurpleEggplant > 3);
 
-            // Case 1: Veggie Platter on white / transparent background
+            // 1. Single-Item Dominance (Checked FIRST so isolated white-background items like Potatoes never trigger platter)
+            if (tanPotato > 15 && orangeCarrot < 5 && forestGreenBroccoli < 5 && brightRedTomato < 5 && cornCob < 5) {
+              return ['Potato'];
+            }
+            if (brightRedTomato > 15 && orangeCarrot < 5 && forestGreenBroccoli < 5 && cornCob < 5 && darkPurpleEggplant < 3) {
+              return ['Tomato'];
+            }
+            if (orangeCarrot > 15 && forestGreenBroccoli < 5 && brightRedTomato < 5 && cornCob < 5) {
+              return ['Carrot'];
+            }
+            if (forestGreenBroccoli > 15 && orangeCarrot < 5 && brightRedTomato < 5 && cornCob < 5) {
+              return ['Broccoli'];
+            }
+            if (darkPurpleEggplant > 8 && orangeCarrot < 5 && forestGreenBroccoli < 5 && cornCob < 5) {
+              return ['Eggplant'];
+            }
+            if (cornCob > 15 && darkPurpleEggplant < 3 && orangeCarrot < 5 && forestGreenBroccoli < 5) {
+              return ['Corn'];
+            }
+
+            // 2. Multi-Item Scenes (Require actual presence of multiple distinct color signatures)
+            final isPlatterScene = (whiteRatio > 0.15 && orangeCarrot > 4 && (forestGreenBroccoli > 4 || ivoryCauliflower > 4)) ||
+                (orangeCarrot > 5 && forestGreenBroccoli > 5);
             if (isPlatterScene) {
               return ['Broccoli', 'Carrot', 'Bell Pepper', 'Tomato', 'Cauliflower', 'Cucumber'];
             }
 
-            // Case 2: Garden Harvest Basket outdoors
+            final isGardenBasketScene = (outdoorGreen > 20 && (cornCob > 3 || darkPurpleEggplant > 2 || brightRedTomato > 4)) ||
+                (cornCob > 4 && darkPurpleEggplant > 2);
             if (isGardenBasketScene) {
               return ['Corn', 'Eggplant', 'Bell Pepper', 'Tomato', 'Spinach', 'Green Chili'];
             }
 
-            // Case 3: Single Item Dominance
-            if (tanPotato > 20 && outdoorGreen < 8 && brightRedTomato < 8) {
-              return ['Potato'];
-            }
-            if (brightRedTomato > 20 && outdoorGreen < 8) {
-              return ['Tomato'];
-            }
-            if (orangeCarrot > 15) {
-              return ['Carrot'];
-            }
-            if (forestGreenBroccoli > 15) {
-              return ['Broccoli'];
-            }
-            if (darkPurpleEggplant > 10) {
-              return ['Eggplant'];
+            // 3. Granular Individual Item Aggregation
+            List<String> individual = [];
+            if (tanPotato > 12) individual.add('Potato');
+            if (brightRedTomato > 10) individual.add('Tomato');
+            if (orangeCarrot > 10) individual.add('Carrot');
+            if (forestGreenBroccoli > 10) individual.add('Broccoli');
+            if (darkPurpleEggplant > 6) individual.add('Eggplant');
+            if (cornCob > 8) individual.add('Corn');
+            if (ivoryCauliflower > 10) individual.add('Cauliflower');
+            if (outdoorGreen > 25 && individual.isNotEmpty) individual.add('Spinach');
+
+            if (individual.isNotEmpty) {
+              return individual;
             }
           }
         }
@@ -263,8 +282,8 @@ class RecipeService {
       }
     }
 
-    // Default multi-vegetable recognition for colorful food images
-    return ['Bell Pepper', 'Tomato', 'Spinach', 'Onion'];
+    // Do NOT guess random ingredients if nothing recognizable was detected
+    return [];
   }
 
   /// Get recipes based on ingredients using Groq text API with resilient smart culinary fallback

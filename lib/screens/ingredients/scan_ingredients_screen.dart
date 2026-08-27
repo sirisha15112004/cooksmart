@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../services/recipe_service.dart';
 import '../../theme/app_theme.dart';
+import '../pantry/pantry_screen.dart';
 import '../recipes/recipe_results_screen.dart';
 
 class ScanIngredientsScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   Uint8List? _imageBytes;
   String? _imageName;
   List<String> _scannedIngredients = [];
+  final Set<String> _selectedIngredients = {};
   bool _isScanning = false;
   bool _isScanned = false;
   int _servings = 2;
@@ -49,7 +51,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
         source: source,
-        imageQuality: 80,
+        imageQuality: 85,
         maxWidth: 1200,
       );
       if (picked == null) return;
@@ -60,13 +62,14 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
         _imageName = picked.name;
         _isScanned = false;
         _scannedIngredients = [];
+        _selectedIngredients.clear();
       });
       await _scanImage();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to select image: $e'),
+            content: Text('Failed to access camera/image: $e'),
             backgroundColor: AppTheme.errorColor,
           ),
         );
@@ -84,17 +87,20 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
       );
       setState(() {
         _scannedIngredients = ingredients;
+        _selectedIngredients.addAll(ingredients);
         _isScanned = true;
       });
-      // Save scan to backend
+      // Save scan to backend if user is logged in
       final prefs = await SharedPreferences.getInstance();
       final uid = prefs.getInt('userId') ?? 0;
-      if (uid > 0) ApiService.saveScan(uid, ingredients);
+      if (uid > 0 && ingredients.isNotEmpty) {
+        ApiService.saveScan(uid, ingredients);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Scan: $e'),
+            content: Text('Scan note: $e'),
             backgroundColor: AppTheme.primary,
           ),
         );
@@ -104,17 +110,101 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     }
   }
 
+  void _toggleIngredient(String ing) {
+    setState(() {
+      if (_selectedIngredients.contains(ing)) {
+        _selectedIngredients.remove(ing);
+      } else {
+        _selectedIngredients.add(ing);
+      }
+    });
+  }
+
   void _removeIngredient(String ing) {
-    setState(() => _scannedIngredients.remove(ing));
+    setState(() {
+      _scannedIngredients.remove(ing);
+      _selectedIngredients.remove(ing);
+    });
+  }
+
+  void _manualAdd() {
+    final text = _manualAddController.text.trim();
+    if (text.isEmpty) return;
+    final formatted = text[0].toUpperCase() + text.substring(1);
+    if (!_scannedIngredients.contains(formatted)) {
+      setState(() {
+        _scannedIngredients.add(formatted);
+        _selectedIngredients.add(formatted);
+      });
+    }
+    _manualAddController.clear();
+  }
+
+  Future<void> _addToPantry() async {
+    final itemsToAdd = _selectedIngredients.isNotEmpty
+        ? _selectedIngredients.toList()
+        : _scannedIngredients;
+
+    if (itemsToAdd.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getStringList('pantry_ingredients') ?? [];
+    int addedCount = 0;
+
+    for (final item in itemsToAdd) {
+      if (!existing.any((e) => e.toLowerCase() == item.toLowerCase())) {
+        existing.insert(0, item);
+        addedCount++;
+      }
+    }
+
+    await prefs.setStringList('pantry_ingredients', existing);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          addedCount > 0
+              ? 'Added $addedCount ingredient${addedCount != 1 ? 's' : ''} to Home Pantry! 🥫'
+              : 'Selected ingredients are already in your Pantry!',
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, color: Colors.white),
+        ),
+        backgroundColor: AppTheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        action: SnackBarAction(
+          label: 'View Pantry',
+          textColor: Colors.white,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PantryScreen()),
+            );
+          },
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   void _findRecipes() {
-    if (_scannedIngredients.isEmpty) return;
+    final activeIngredients = _selectedIngredients.isNotEmpty
+        ? _selectedIngredients.toList()
+        : _scannedIngredients;
+
+    if (activeIngredients.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one ingredient.')),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => RecipeResultsScreen(
-          ingredients: _scannedIngredients,
+          ingredients: activeIngredients,
           servings: _servings,
           spiceLevel: _spiceLevel,
           dietType: _dietType == 'None' ? null : _dietType,
@@ -123,594 +213,457 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     );
   }
 
-  void _showAiSettingsDialog() async {
-    final prefs = await SharedPreferences.getInstance();
-    final currentKey = prefs.getString('groq_api_key') ?? '';
-    final controller = TextEditingController(text: currentKey);
-
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.auto_awesome, color: AppTheme.primary),
-            const SizedBox(width: 8),
-            Text('AI Vision Engine',
-                style: GoogleFonts.dmSans(
-                    fontWeight: FontWeight.bold, fontSize: 17)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'High-Precision Culinary Vision is active. You can optionally save a Groq API Key to enable cloud inference:',
-              style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                labelText: 'Groq API Key (gsk_...)',
-                hintText: 'Enter API Key or leave empty',
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await prefs.setString('groq_api_key', controller.text.trim());
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('AI Vision settings saved successfully!'),
-                      backgroundColor: AppTheme.primary),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Save Key', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
+  void _resetScan() {
+    setState(() {
+      _imageBytes = null;
+      _imageName = null;
+      _scannedIngredients = [];
+      _selectedIngredients.clear();
+      _isScanned = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF9FBF9),
       appBar: AppBar(
         title: const Text('Scan Ingredients'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_suggest_rounded),
-            tooltip: 'AI Vision Settings',
-            onPressed: _showAiSettingsDialog,
+          if (_imageBytes != null)
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Scan Again',
+              onPressed: _resetScan,
+            ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildImageCard(),
+            const SizedBox(height: 16),
+            _buildCaptureButtons(),
+            const SizedBox(height: 20),
+            if (_isScanning) _buildScanningProgress(),
+            if (_isScanned) _buildScanResults(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageCard() {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 220, maxHeight: 380),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      body: Column(
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+          if (_imageBytes != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Image.memory(
+                _imageBytes!,
+                fit: BoxFit.contain,
+                width: double.infinity,
+                alignment: Alignment.center,
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.all(32),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildImageSection(),
-                  const SizedBox(height: 24),
-                  if (_isScanning) _buildScanningState(),
-                  if (_isScanned && !_isScanning) _buildResults(),
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 36),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Point Camera or Upload Photo',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Point your device camera at ingredients or upload an image to scan instantly.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
-          if (_isScanned && _scannedIngredients.isNotEmpty)
-            _buildBottomButton(),
+          if (_imageBytes != null)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: _resetScan,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildImageSection() {
-    return Column(
+  Widget _buildCaptureButtons() {
+    return Row(
       children: [
-        if (_imageBytes == null)
-          Container(
-            width: double.infinity,
-            height: 220,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppTheme.divider, width: 2),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => _pickImage(ImageSource.gallery),
+            icon: const Icon(Icons.photo_library_rounded, size: 20),
+            label: const Text('Upload Image', style: TextStyle(fontWeight: FontWeight.bold)),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              foregroundColor: AppTheme.primary,
+              side: const BorderSide(color: AppTheme.primary, width: 1.5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 72, height: 72,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(Icons.camera_alt_rounded,
-                      size: 36, color: AppTheme.primary),
-                ),
-                const SizedBox(height: 16),
-                Text('Take a photo of your ingredients',
-                    style: GoogleFonts.dmSans(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: AppTheme.textPrimary,
-                    )),
-                const SizedBox(height: 6),
-                Text('Detects ingredients automatically from photo',
-                    style: GoogleFonts.dmSans(
-                        color: AppTheme.textSecondary, fontSize: 13)),
-              ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () => _pickImage(ImageSource.camera),
+            icon: const Icon(Icons.camera_alt_rounded, size: 20),
+            label: const Text('Scan with Camera', style: TextStyle(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              elevation: 0,
             ),
-          ).animate().fadeIn()
-        else
-          Stack(
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScanningProgress() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        children: [
+          const LinearProgressIndicator(
+            backgroundColor: Color(0xFFE8F5E9),
+            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Analyzing visible food items...',
+            style: GoogleFonts.dmSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScanResults() {
+    if (_scannedIngredients.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppTheme.divider),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Icon(Icons.search_off_rounded, color: Colors.orange, size: 30),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No ingredients detected',
+              style: GoogleFonts.dmSans(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Try scanning again with the ingredients clearly visible.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(fontSize: 13, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _pickImage(ImageSource.camera),
+              icon: const Icon(Icons.camera_alt_rounded, size: 18),
+              label: const Text('Scan Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+      ).animate().fadeIn();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Detected header
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8F5E9),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+          ),
+          child: Row(
             children: [
-              Container(
-                width: double.infinity,
-                constraints: const BoxConstraints(minHeight: 220, maxHeight: 380),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppTheme.divider, width: 1.5),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Image.memory(
-                    _imageBytes!,
-                    width: double.infinity,
-                    fit: BoxFit.contain,
+              const Icon(Icons.check_circle_rounded, color: AppTheme.primary, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${_scannedIngredients.length} Ingredient${_scannedIngredients.length != 1 ? 's' : ''} Detected',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primary,
                   ),
                 ),
               ),
-              Positioned(
-                top: 12, right: 12,
-                child: GestureDetector(
-                  onTap: () => setState(() {
-                    _imageBytes = null;
-                    _imageName = null;
-                    _isScanned = false;
-                    _scannedIngredients = [];
-                  }),
-                  child: Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close_rounded,
-                        color: Colors.white, size: 20),
-                  ),
-                ),
+              TextButton(
+                onPressed: () => _pickImage(ImageSource.camera),
+                child: const Text('Rescan', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
-          ).animate().fadeIn(),
-        const SizedBox(height: 16),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text('Detected Ingredients', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        // Interactive Checklist of Detected Ingredients
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.divider),
+          ),
+          child: Column(
+            children: _scannedIngredients.map((ing) {
+              final isChecked = _selectedIngredients.contains(ing);
+              return ListTile(
+                dense: true,
+                leading: Checkbox(
+                  value: isChecked,
+                  activeColor: AppTheme.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  onChanged: (_) => _toggleIngredient(ing),
+                ),
+                title: Text(
+                  ing,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: isChecked ? AppTheme.textPrimary : AppTheme.textSecondary,
+                  ),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 18, color: Colors.grey),
+                  tooltip: 'Remove',
+                  onPressed: () => _removeIngredient(ing),
+                ),
+                onTap: () => _toggleIngredient(ing),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 14),
+        // Manual Add Field
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppTheme.divider),
+          ),
+          child: Row(
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(left: 12, right: 8),
+                child: Icon(Icons.add_circle_outline_rounded, color: AppTheme.primary, size: 20),
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _manualAddController,
+                  style: GoogleFonts.dmSans(fontSize: 13),
+                  decoration: const InputDecoration(
+                    hintText: 'Add another ingredient...',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onSubmitted: (_) => _manualAdd(),
+                ),
+              ),
+              TextButton(
+                onPressed: _manualAdd,
+                child: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        // Recipe Preferences & Options
+        Text('Recipe Preferences', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 12),
+        _buildPreferencesCard(),
+        const SizedBox(height: 24),
+        // Action Buttons: Add to Pantry and Find Recipes
         Row(
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => _pickImage(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library_rounded),
-                label: const Text('Gallery'),
+                onPressed: _addToPantry,
+                icon: const Icon(Icons.kitchen_rounded, size: 20),
+                label: const Text('Add to Pantry', style: TextStyle(fontWeight: FontWeight.bold)),
                 style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   foregroundColor: AppTheme.primary,
-                  side: const BorderSide(color: AppTheme.primary),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                  side: const BorderSide(color: AppTheme.primary, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => _pickImage(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt_rounded),
-                label: const Text('Camera'),
+                onPressed: _findRecipes,
+                icon: const Icon(Icons.restaurant_menu_rounded, size: 20),
+                label: const Text('Find Recipes', style: TextStyle(fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
                 ),
               ),
             ),
           ],
         ),
       ],
-    );
+    ).animate().fadeIn(duration: 300.ms);
   }
 
-  Widget _buildScanningState() {
+  Widget _buildPreferencesCard() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.divider),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CircularProgressIndicator(
-              color: AppTheme.primary, strokeWidth: 3),
-          const SizedBox(height: 16),
-          Text('Analyzing your ingredients...',
-              style: GoogleFonts.dmSans(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-                color: AppTheme.textPrimary,
-              )),
-          const SizedBox(height: 6),
-          Text('Identifying food items from the image',
-              style: GoogleFonts.dmSans(
-                  color: AppTheme.textSecondary, fontSize: 13)),
-        ],
-      ),
-    ).animate().fadeIn();
-  }
-
-  Widget _buildResults() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Found badge
-        Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppTheme.successColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: AppTheme.successColor.withValues(alpha: 0.3)),
-          ),
-          child: Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.check_circle_rounded,
-                  color: AppTheme.successColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                  'Detected: ${_scannedIngredients.length} ingredient${_scannedIngredients.length != 1 ? 's' : ''}',
-                  style: GoogleFonts.dmSans(
-                    color: AppTheme.successColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  )),
-              const Spacer(),
-              GestureDetector(
-                onTap: _scanImage,
-                child: Text('Rescan',
-                    style: GoogleFonts.dmSans(
-                      color: AppTheme.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    )),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _scannedIngredients
-              .map((ing) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(100),
-                      border: Border.all(
-                          color: AppTheme.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(ing,
-                            style: GoogleFonts.dmSans(
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            )),
-                        const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () => _removeIngredient(ing),
-                          child: const Icon(Icons.close_rounded,
-                              size: 16, color: AppTheme.primary),
-                        ),
-                      ],
-                    ),
-                  ))
-              .toList(),
-        ),
-        const SizedBox(height: 16),
-        // Add more ingredients text bar
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _manualAddController,
-                decoration: InputDecoration(
-                  hintText: 'Add another ingredient (e.g. Garlic, Onion)...',
-                  hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppTheme.textSecondary),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppTheme.divider),
-                  ),
-                  prefixIcon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppTheme.primary),
-                ),
-                onSubmitted: (val) {
-                  final trimmed = val.trim();
-                  if (trimmed.isNotEmpty && !_scannedIngredients.contains(trimmed)) {
-                    setState(() => _scannedIngredients.add(trimmed));
-                    _manualAddController.clear();
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () {
-                final val = _manualAddController.text.trim();
-                if (val.isNotEmpty && !_scannedIngredients.contains(val)) {
-                  setState(() => _scannedIngredients.add(val));
-                  _manualAddController.clear();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Add'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // Quick pairings / pantry staples
-        Text('Quick add pantry staples:',
-            style: GoogleFonts.dmSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textSecondary,
-            )),
-        const SizedBox(height: 6),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: ['Onion', 'Garlic', 'Tomato', 'Green Chili', 'Butter', 'Salt', 'Olive Oil', 'Cumin']
-                .where((s) => !_scannedIngredients.contains(s))
-                .map((s) => Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: ActionChip(
-                        label: Text('+ $s',
-                            style: GoogleFonts.dmSans(
-                                fontSize: 12,
-                                color: AppTheme.primary,
-                                fontWeight: FontWeight.w600)),
-                        backgroundColor: AppTheme.primary.withValues(alpha: 0.08),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(
-                                color: AppTheme.primary.withValues(alpha: 0.2))),
-                        onPressed: () =>
-                            setState(() => _scannedIngredients.add(s)),
-                      ),
-                    ))
-                .toList(),
-          ),
-        ),
-        const SizedBox(height: 24),
-        // Preferences card
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.divider),
-          ),
-          child: Column(
-            children: [
+              Text('Servings', style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, fontSize: 13)),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(children: [
-                    const Text('👥', style: TextStyle(fontSize: 20)),
-                    const SizedBox(width: 10),
-                    Text('Servings',
-                        style: Theme.of(context).textTheme.titleLarge),
-                  ]),
-                  Row(
-                    children: [
-                      _ScanCountBtn(
-                        icon: Icons.remove_rounded,
-                        onTap: () {
-                          if (_servings > 1) {
-                            setState(() => _servings--);
-                          }
-                        },
-                      ),
-                      Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('$_servings',
-                            style: GoogleFonts.dmSans(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                      _ScanCountBtn(
-                        icon: Icons.add_rounded,
-                        onTap: () {
-                          if (_servings < 10) {
-                            setState(() => _servings++);
-                          }
-                        },
-                      ),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline, color: AppTheme.primary, size: 22),
+                    onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
                   ),
-                ],
-              ),
-              const Divider(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(children: [
-                    const Text('🌶️', style: TextStyle(fontSize: 20)),
-                    const SizedBox(width: 10),
-                    Text('Spice Level',
-                        style: Theme.of(context).textTheme.titleLarge),
-                  ]),
-                  DropdownButton<String>(
-                    value: _spiceLevel,
-                    underline: const SizedBox(),
-                    style: GoogleFonts.dmSans(
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14),
-                    items: ['Mild', 'Medium', 'Spicy', 'Extra Spicy']
-                        .map((s) => DropdownMenuItem(
-                            value: s, child: Text(s)))
-                        .toList(),
-                    onChanged: (v) =>
-                        setState(() => _spiceLevel = v!),
+                  Text('$_servings', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 15)),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline, color: AppTheme.primary, size: 22),
+                    onPressed: _servings < 10 ? () => setState(() => _servings++) : null,
                   ),
                 ],
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 20),
-        // Diet type
-        Text('Diet Type',
-            style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 4),
-        Text('Filter recipes based on your dietary needs',
-            style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 14),
-        _buildDietSelector(),
-      ],
-    ).animate().fadeIn().slideY(begin: 0.2);
-  }
-
-  Widget _buildDietSelector() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: _dietOptions.map((diet) {
-        final isSelected = _dietType == diet['label'];
-        return GestureDetector(
-          onTap: () => setState(() => _dietType = diet['label']!),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: isSelected ? AppTheme.primary : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isSelected ? AppTheme.primary : AppTheme.divider,
-                width: isSelected ? 2 : 1,
-              ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: AppTheme.primary.withValues(alpha: 0.25),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      )
-                    ]
-                  : [],
-            ),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          Text('Diet Goal', style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(diet['emoji']!,
-                    style: const TextStyle(fontSize: 16)),
-                const SizedBox(width: 6),
-                Text(diet['label']!,
-                    style: GoogleFonts.dmSans(
-                      color: isSelected
-                          ? Colors.white
-                          : AppTheme.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    )),
-              ],
+              children: _dietOptions.map((opt) {
+                final isSel = _dietType == opt['label'];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text('${opt['emoji']} ${opt['label']}'),
+                    selected: isSel,
+                    selectedColor: AppTheme.primary.withValues(alpha: 0.15),
+                    checkmarkColor: AppTheme.primary,
+                    labelStyle: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                      color: isSel ? AppTheme.primary : AppTheme.textPrimary,
+                    ),
+                    onSelected: (_) => setState(() => _dietType = opt['label']!),
+                  ),
+                );
+              }).toList(),
             ),
           ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildBottomButton() {
-    final dietLabel = _dietType != 'None' ? ' • $_dietType' : '';
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -4))
         ],
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton(
-          onPressed: _findRecipes,
-          child: Text('Find Recipes →$dietLabel'),
-        ),
-      ),
-    );
-  }
-}
-
-class _ScanCountBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _ScanCountBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 34, height: 34,
-        decoration: BoxDecoration(
-          color: AppTheme.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, size: 18, color: AppTheme.primary),
       ),
     );
   }
