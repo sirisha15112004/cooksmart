@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/recipe_model.dart';
+import '../../models/shopping_item.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../shopping/shopping_list_screen.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
@@ -21,6 +24,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   bool _isFavorite = false;
   int _userId = 0;
   int? _dbRecipeId; // ID after saving to backend
+  List<String> _pantryIngredients = [];
 
   @override
   void initState() {
@@ -29,6 +33,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     _isFavorite = widget.recipe.isFavorite;
     _tabs = TabController(length: 3, vsync: this);
     _loadUserId();
+    _loadPantry();
   }
 
   @override
@@ -41,16 +46,107 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userId = prefs.getInt('userId') ?? 0;
-      // Only treat as already-in-DB if recipe.id is a large number
-      // (Groq returns small ids like "1","2" which are NOT real DB ids)
-      // We mark recipe as DB-saved only when it comes from FavoritesScreen
-      // where isFavorite == true AND id was set by the backend
       final parsedId = int.tryParse(_recipe.id);
       if (_recipe.isFavorite && parsedId != null && parsedId > 0) {
         _dbRecipeId = parsedId;
       }
-      // else _dbRecipeId stays null → will be saved fresh on first heart tap
     });
+  }
+
+  Future<void> _loadPantry() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('pantry_ingredients') ?? [];
+    if (mounted) {
+      setState(() {
+        _pantryIngredients = saved;
+      });
+    }
+  }
+
+  bool _isInPantry(String recipeIngredient) {
+    final lowerRec = recipeIngredient.toLowerCase();
+    return _pantryIngredients.any((p) {
+      final lowerP = p.trim().toLowerCase();
+      if (lowerP.isEmpty) return false;
+      return lowerRec.contains(lowerP) || lowerP.contains(lowerRec);
+    });
+  }
+
+  String _cleanIngredientName(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return raw;
+    return trimmed[0].toUpperCase() + trimmed.substring(1);
+  }
+
+  Future<void> _addMissingIngredientsToShoppingList() async {
+    final missing = _recipe.ingredients.where((ing) => !_isInPantry(ing)).toList();
+
+    if (missing.isEmpty) {
+      _showSnack('All ingredients are already in your Pantry! 🎉', AppTheme.successColor);
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('shopping_list_items');
+    List<ShoppingItem> currentItems = [];
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final List<dynamic> decoded = jsonDecode(raw);
+        currentItems = decoded.map((m) => ShoppingItem.fromJson(m)).toList();
+      } catch (_) {}
+    }
+
+    int addedCount = 0;
+    for (final ing in missing) {
+      final cleanName = _cleanIngredientName(ing);
+      final alreadyInList = currentItems.any((item) =>
+          item.name.toLowerCase() == cleanName.toLowerCase() ||
+          item.name.toLowerCase() == ing.toLowerCase());
+
+      if (!alreadyInList) {
+        currentItems.insert(
+          0,
+          ShoppingItem(
+            id: '${DateTime.now().millisecondsSinceEpoch}_$addedCount',
+            name: cleanName,
+            isCompleted: false,
+          ),
+        );
+        addedCount++;
+      }
+    }
+
+    if (addedCount > 0) {
+      final updatedRaw = jsonEncode(currentItems.map((i) => i.toJson()).toList());
+      await prefs.setString('shopping_list_items', updatedRaw);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Added $addedCount missing ingredient${addedCount != 1 ? 's' : ''} to Shopping List! 🛒',
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, color: Colors.white),
+          ),
+          backgroundColor: const Color(0xFFE65100),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          action: SnackBarAction(
+            label: 'View List',
+            textColor: Colors.white,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ShoppingListScreen()),
+              );
+            },
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } else {
+      _showSnack('All missing ingredients are already in your Shopping List!', Colors.orange);
+    }
   }
 
   /// Save recipe to backend (first time), then toggle favorite
@@ -277,27 +373,172 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   }
 
   Widget _buildIngredients() {
-    return ListView.separated(
+    final inPantryCount =
+        _recipe.ingredients.where((i) => _isInPantry(i)).length;
+    final missingCount = _recipe.ingredients.length - inPantryCount;
+
+    return ListView(
       padding: const EdgeInsets.all(20),
-      itemCount: _recipe.ingredients.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (ctx, i) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 8, height: 8,
-              decoration: const BoxDecoration(
-                  color: AppTheme.primary, shape: BoxShape.circle),
+      children: [
+        // Pantry comparison & Shopping List integration card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: missingCount == 0
+                ? const Color(0xFFE8F5E9)
+                : const Color(0xFFFFF3E0),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: missingCount == 0
+                  ? AppTheme.primary.withValues(alpha: 0.3)
+                  : Colors.orange.withValues(alpha: 0.3),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(_recipe.ingredients[i],
-                  style: Theme.of(ctx).textTheme.bodyLarge),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    missingCount == 0
+                        ? Icons.check_circle_rounded
+                        : Icons.shopping_basket_rounded,
+                    color: missingCount == 0
+                        ? AppTheme.primary
+                        : const Color(0xFFE65100),
+                    size: 22,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      missingCount == 0
+                          ? 'All ingredients in your Pantry! 🎉'
+                          : '$missingCount missing ingredient${missingCount != 1 ? 's' : ''} for this recipe',
+                      style: GoogleFonts.dmSans(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: missingCount == 0
+                            ? AppTheme.primary
+                            : const Color(0xFFE65100),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$inPantryCount of ${_recipe.ingredients.length} items available in your Home Pantry.',
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              if (missingCount > 0) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _addMissingIngredientsToShoppingList,
+                    icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
+                    label: const Text(
+                      'Add Missing Ingredients to Shopping List',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE65100),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ).animate().fadeIn(duration: 300.ms),
+        const SizedBox(height: 16),
+        // Ingredients list with In Pantry / Need to Buy badges
+        ..._recipe.ingredients.asMap().entries.map((entry) {
+          final i = entry.key;
+          final ing = entry.value;
+          final hasInPantry = _isInPantry(ing);
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.divider),
             ),
-          ],
-        ),
-      ).animate().fadeIn(delay: (i * 40).ms),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: hasInPantry
+                        ? AppTheme.primary
+                        : Colors.orange.shade700,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    ing,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: hasInPantry
+                        ? AppTheme.primary.withValues(alpha: 0.1)
+                        : Colors.orange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        hasInPantry
+                            ? Icons.check_circle_outline_rounded
+                            : Icons.shopping_cart_outlined,
+                        size: 13,
+                        color: hasInPantry
+                            ? AppTheme.primary
+                            : const Color(0xFFE65100),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        hasInPantry ? 'In Pantry' : 'Need to Buy',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: hasInPantry
+                              ? AppTheme.primary
+                              : const Color(0xFFE65100),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ).animate().fadeIn(delay: (i * 30).ms);
+        }),
+      ],
     );
   }
 

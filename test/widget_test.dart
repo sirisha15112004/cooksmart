@@ -253,5 +253,19 @@ void main() {
       expect(textWidget.style?.decoration, TextDecoration.lineThrough);
       expect(textWidget.style?.decorationColor, Colors.red);
     });
+
+    test('Recipe to Shopping List compares Pantry and only identifies missing items', () {
+      final pantry = ['Tomato', 'Onion'];
+      final recipeIngredients = ['Tomato', 'Onion', 'Chicken', 'Cheese'];
+
+      final missing = recipeIngredients.where((ing) {
+        final lowerIng = ing.toLowerCase();
+        return !pantry.any((p) => lowerIng.contains(p.toLowerCase()));
+      }).toList();
+
+      expect(missing, equals(['Chicken', 'Cheese']));
+      expect(missing.contains('Tomato'), isFalse);
+      expect(missing.contains('Onion'), isFalse);
+    });
   });
 }
