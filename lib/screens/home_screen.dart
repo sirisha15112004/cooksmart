@@ -1,21 +1,14 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/recipe_model.dart';
-import '../models/shopping_item.dart';
-import '../services/api_service.dart';
-import '../services/recipe_service.dart';
 import '../theme/app_theme.dart';
-import 'favorites_screen.dart';
 import 'ingredients/enter_ingredients_screen.dart';
 import 'ingredients/scan_ingredients_screen.dart';
 import 'meal_planner/meal_planner_screen.dart';
-import 'pantry/pantry_screen.dart';
+import 'favorites_screen.dart';
 import 'profile_screen.dart';
-import 'recipes/recipe_detail_screen.dart';
-import 'recipes/recipe_results_screen.dart';
+import 'pantry/pantry_screen.dart';
 import 'shopping/shopping_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -26,1334 +19,510 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Navigation State: 0: Home, 1: Scan, 2: Pantry, 3: Recipes, 4: Planner, 5: Shopping, 6: Favorites, 7: Profile
-  int _activeNavIndex = 0;
-
+  int _currentIndex = 0;
   String _userName = 'Chef';
-  int _userId = 0;
-  List<String> _pantryItems = [];
-  List<Recipe> _recommendedRecipes = [];
-  int _savedRecipesCount = 0;
-  int _plannedMealsCount = 0;
-  int _shoppingItemsCount = 0;
-  bool _isLoadingData = true;
-
-  // Enter Ingredients & Recipe Preferences state on Home
-  final TextEditingController _ingredientInputController = TextEditingController();
-  final List<String> _enteredIngredients = ['Broccoli', 'Carrot', 'Bell Pepper', 'Tomato'];
-  final Set<String> _selectedIngredients = {'Broccoli', 'Carrot', 'Bell Pepper', 'Tomato'};
-  int _servings = 2;
-  String _spiceLevel = 'Medium';
-  String _dietType = 'None';
-
-  final List<String> _spiceLevels = ['Mild', 'Medium', 'Spicy', 'Extra Spicy'];
-  final List<Map<String, String>> _dietOptions = [
-    {'name': 'None', 'label': 'None', 'emoji': ''},
-    {'name': 'Vegetarian', 'label': 'Vegetarian', 'emoji': '🥦 '},
-    {'name': 'Vegan', 'label': 'Vegan', 'emoji': '🌱 '},
-    {'name': 'High-Protein', 'label': 'High-Protein', 'emoji': '💪 '},
-    {'name': 'Diabetic-Friendly', 'label': 'Diabetic-Friendly', 'emoji': '🩺 '},
-    {'name': 'Weight-Loss', 'label': 'Weight-Loss', 'emoji': '⚖️ '},
-  ];
-
-  static const List<String> _commonStaples = [
-    'Onion', 'Tomato', 'Garlic', 'Potato', 'Rice', 'Eggs',
-    'Chicken', 'Milk', 'Butter', 'Spinach', 'Paneer', 'Pasta',
-    'Cheese', 'Carrot', 'Bell Pepper', 'Broccoli', 'Cucumber', 'Cauliflower',
-  ];
-
-  final RecipeService _recipeService = RecipeService();
 
   @override
   void initState() {
     super.initState();
-    _loadKitchenData();
+    _loadUser();
   }
 
-  @override
-  void dispose() {
-    _ingredientInputController.dispose();
-    super.dispose();
-  }
-
-  /// Automatically updates and reloads pantry ingredients and strictly matched recipes
-  Future<void> _loadKitchenData() async {
-    setState(() => _isLoadingData = true);
+  Future<void> _loadUser() async {
     final prefs = await SharedPreferences.getInstance();
-    _userId = prefs.getInt('userId') ?? 0;
-    _userName = prefs.getString('userName') ?? 'Chef';
-    final savedPantry = prefs.getStringList('pantry_ingredients');
-    _pantryItems = savedPantry ?? ['Tomato', 'Potato', 'Onion', 'Rice'];
-
-    // Load shopping list count
-    final rawShopping = prefs.getString('shopping_list_items');
-    if (rawShopping != null && rawShopping.isNotEmpty) {
-      try {
-        final List<dynamic> decoded = jsonDecode(rawShopping);
-        final items = decoded.map((m) => ShoppingItem.fromJson(m)).toList();
-        _shoppingItemsCount = items.where((i) => !i.isCompleted).length;
-      } catch (_) {}
-    }
-
-    // STRICT PANTRY MATCHING:
-    // A recipe appears ONLY if ALL required ingredients are present in My Pantry
-    try {
-      final strictList = await _recipeService.getPantryStrictRecipes(
-        pantryIngredients: _pantryItems,
-        servings: 2,
-        spiceLevel: 'Medium',
-      );
-      _recommendedRecipes = strictList.take(4).toList();
-    } catch (_) {
-      _recommendedRecipes = [];
-    }
-
-    // Fetch stats from backend if user is logged in
-    if (_userId > 0) {
-      try {
-        final profile = await ApiService.getProfile(_userId);
-        if (profile != null) {
-          final stats = profile['stats'] ?? {};
-          _savedRecipesCount = stats['favorites'] ?? 0;
-          _plannedMealsCount = stats['planned_days'] ?? 0;
-        }
-      } catch (_) {}
-    }
-
-    if (mounted) {
-      setState(() => _isLoadingData = false);
-    }
-  }
-
-  void _onNavTabChanged(int index) {
-    setState(() => _activeNavIndex = index);
-    // Whenever user navigates to Home, automatically reload the latest My Pantry items
-    if (index == 0) {
-      _loadKitchenData();
-    }
-  }
-
-  void _addEnteredIngredient(String raw) {
-    final name = raw.trim();
-    if (name.isEmpty) return;
-
-    final formatted = name.split(' ').map((w) {
-      if (w.isEmpty) return '';
-      return w[0].toUpperCase() + w.substring(1).toLowerCase();
-    }).join(' ');
-
-    if (!_enteredIngredients.any((i) => i.toLowerCase() == formatted.toLowerCase())) {
-      setState(() {
-        _enteredIngredients.add(formatted);
-        _selectedIngredients.add(formatted);
-      });
-      _ingredientInputController.clear();
-    }
-  }
-
-  void _removeEnteredIngredient(String name) {
     setState(() {
-      _enteredIngredients.remove(name);
-      _selectedIngredients.remove(name);
+      _userName = prefs.getString('userName') ?? 'Chef';
     });
-  }
-
-  void _toggleSelectedIngredient(String name) {
-    setState(() {
-      if (_selectedIngredients.contains(name)) {
-        _selectedIngredients.remove(name);
-      } else {
-        _selectedIngredients.add(name);
-      }
-    });
-  }
-
-  Future<void> _addToPantryFromEntered() async {
-    final itemsToAdd = _selectedIngredients.isNotEmpty ? _selectedIngredients.toList() : _enteredIngredients;
-    if (itemsToAdd.isEmpty) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    final existing = prefs.getStringList('pantry_ingredients') ?? [];
-    int addedCount = 0;
-
-    for (final item in itemsToAdd) {
-      if (!existing.any((e) => e.toLowerCase() == item.toLowerCase())) {
-        existing.insert(0, item);
-        addedCount++;
-      }
-    }
-
-    await prefs.setStringList('pantry_ingredients', existing);
-    _loadKitchenData();
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          addedCount > 0
-              ? 'Added $addedCount item${addedCount != 1 ? 's' : ''} to My Pantry'
-              : 'Selected items are already in your Pantry',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
-        ),
-        backgroundColor: AppTheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  void _onFindRecipesFromEntered() {
-    final active = _selectedIngredients.isNotEmpty ? _selectedIngredients.toList() : _enteredIngredients;
-    if (active.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one ingredient to find recipes.'),
-          backgroundColor: AppTheme.textPrimary,
-        ),
-      );
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => RecipeResultsScreen(
-          ingredients: List.from(active),
-          servings: _servings,
-          spiceLevel: _spiceLevel,
-          dietType: _dietType == 'None' ? null : _dietType,
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 900;
-    final isTablet = screenWidth >= 650 && screenWidth < 900;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      body: Column(
-        children: [
-          // Sticky Top Navigation Bar (Full Width)
-          _buildTopNavigationBar(isDesktop, isTablet),
-
-          // Main View Content
-          Expanded(
-            child: _buildCurrentView(isDesktop, isTablet),
-          ),
-        ],
-      ),
-      // Bottom navigation only on mobile screens (< 650px)
-      bottomNavigationBar: !isDesktop && !isTablet ? _buildMobileBottomNav() : null,
+      backgroundColor: AppTheme.surface,
+      body: _currentIndex == 0
+          ? _buildHomePage()
+          : _currentIndex == 1
+              ? const FavoritesScreen()
+              : _currentIndex == 2
+                  ? const MealPlannerScreen()
+                  : const ProfileScreen(),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  Widget _buildCurrentView(bool isDesktop, bool isTablet) {
-    switch (_activeNavIndex) {
-      case 1:
-        return const ScanIngredientsScreen();
-      case 2:
-        return PantryScreen(onPantryChanged: () => _loadKitchenData());
-      case 3:
-        return const EnterIngredientsScreen();
-      case 4:
-        return const MealPlannerScreen();
-      case 5:
-        return const ShoppingListScreen();
-      case 6:
-        return const FavoritesScreen();
-      case 7:
-        return const ProfileScreen();
-      case 0:
-      default:
-        return _buildHomePage(isDesktop, isTablet);
-    }
-  }
-
-  // -------------------------------------------------------------
-  // TOP NAVIGATION BAR (Full Width, Sticky, Responsive)
-  // -------------------------------------------------------------
-  Widget _buildTopNavigationBar(bool isDesktop, bool isTablet) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Row(
-        children: [
-          // Brand Logo & Name
-          GestureDetector(
-            onTap: () => _onNavTabChanged(0),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.restaurant_menu_rounded, color: Colors.white, size: 20),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'KitchenMate',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF111827),
-                    letterSpacing: -0.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 32),
-
-          // Center Navigation Links (Desktop & Tablet)
-          if (isDesktop || isTablet)
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _navItem(0, 'Home', Icons.home_outlined),
-                    _navItem(3, 'Enter Ingredients', Icons.edit_note_rounded),
-                    _navItem(1, 'Scan Ingredients', Icons.photo_camera_outlined),
-                    _navItem(2, 'My Pantry', Icons.inventory_2_outlined),
-                    _navItem(4, 'Meal Planner', Icons.calendar_today_outlined),
-                    _navItem(5, 'Shopping List', Icons.checklist_rounded),
-                  ],
-                ),
-              ),
-            )
-          else
-            const Spacer(),
-
-          // Right Actions: Search, Saved Recipes, Profile
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.search_rounded, color: Color(0xFF4B5563), size: 20),
-                tooltip: 'Search Recipes',
-                onPressed: () => _onNavTabChanged(3),
-              ),
-              IconButton(
-                icon: const Icon(Icons.bookmark_outline_rounded, color: Color(0xFF4B5563), size: 20),
-                tooltip: 'Saved Recipes',
-                onPressed: () => _onNavTabChanged(6),
-              ),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () => _onNavTabChanged(7),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: _activeNavIndex == 7 ? AppTheme.primary : const Color(0xFFF3F4F6),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
-                  ),
-                  child: Center(
-                    child: Text(
-                      _userName.isNotEmpty ? _userName[0].toUpperCase() : 'C',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _activeNavIndex == 7 ? Colors.white : AppTheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _navItem(int index, String title, IconData icon) {
-    final isActive = _activeNavIndex == index;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: TextButton.icon(
-        onPressed: () => _onNavTabChanged(index),
-        icon: Icon(
-          icon,
-          size: 16,
-          color: isActive ? AppTheme.primary : const Color(0xFF4B5563),
-        ),
-        label: Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-            color: isActive ? AppTheme.primary : const Color(0xFF4B5563),
-          ),
-        ),
-        style: TextButton.styleFrom(
-          backgroundColor: isActive ? AppTheme.primary.withValues(alpha: 0.08) : Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      ),
-    );
-  }
-
-  // -------------------------------------------------------------
-  // HOME PAGE CONTENT (Full Width Layout)
-  // -------------------------------------------------------------
-  Widget _buildHomePage(bool isDesktop, bool isTablet) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Full-Width Hero Section
-          _buildHeroSection(isDesktop, isTablet),
-          const SizedBox(height: 28),
-
-          // 2. Full-Width Enter Ingredients, Suggestions, & Preferences Section
-          _buildEnterIngredientsSection(isDesktop, isTablet),
-          const SizedBox(height: 28),
-
-          // 3. Kitchen Overview (4 Compact Stat Cards in 1 Row)
-          _buildKitchenOverviewSection(isDesktop, isTablet),
-          const SizedBox(height: 28),
-
-          // 4. Recommended for You (100% Pantry-Matched Recipes)
-          _buildRecommendedRecipesSection(isDesktop, isTablet),
-          const SizedBox(height: 28),
-        ],
-      ),
-    );
-  }
-
-  // -------------------------------------------------------------
-  // HERO SECTION (Full-Width, Clean, Modern Layout)
-  // -------------------------------------------------------------
-  Widget _buildHeroSection(bool isDesktop, bool isTablet) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isDesktop ? 32 : 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 16,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Small Label
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              'SMART COOKING MADE SIMPLE',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.primary,
-                letterSpacing: 0.6,
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Main Heading
-          Text(
-            'Cook more with what you already have.',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: isDesktop ? 32 : 24,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF111827),
-              letterSpacing: -0.6,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Description
-          Text(
-            'Upload a photo or enter your available ingredients and discover recipes personalized for your kitchen.',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: const Color(0xFF4B5563),
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Action Buttons
-          Wrap(
-            spacing: 12,
-            runSpacing: 10,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () => _onNavTabChanged(1),
-                icon: const Icon(Icons.photo_camera_outlined, size: 16),
-                label: const Text('Scan Ingredients'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _onNavTabChanged(2),
-                icon: const Icon(Icons.inventory_2_outlined, size: 16),
-                label: const Text('Manage My Pantry'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF111827),
-                  side: const BorderSide(color: Color(0xFFD1D5DB)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 250.ms);
-  }
-
-  // -------------------------------------------------------------
-  // FULL-WIDTH INGREDIENTS, SUGGESTIONS & PREFERENCES SECTION
-  // -------------------------------------------------------------
-  Widget _buildEnterIngredientsSection(bool isDesktop, bool isTablet) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isDesktop ? 28 : 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section Title
-          Text(
-            'Detected Ingredients',
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF111827),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // 1. Ingredients List Card with Green Checkmarks
-          if (_enteredIngredients.isNotEmpty) ...[
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-              ),
-              child: Column(
-                children: _enteredIngredients.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final ing = entry.value;
-                  final isChecked = _selectedIngredients.contains(ing);
-                  final isLast = index == _enteredIngredients.length - 1;
-
-                  return Column(
-                    children: [
-                      ListTile(
-                        dense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                        leading: Checkbox(
-                          value: isChecked,
-                          activeColor: AppTheme.primary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                          onChanged: (_) => _toggleSelectedIngredient(ing),
-                        ),
-                        title: Text(
-                          ing,
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: isChecked ? const Color(0xFF111827) : const Color(0xFF6B7280),
-                          ),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF9CA3AF)),
-                          tooltip: 'Remove',
-                          onPressed: () => _removeEnteredIngredient(ing),
-                        ),
-                        onTap: () => _toggleSelectedIngredient(ing),
-                      ),
-                      if (!isLast) const Divider(height: 1, color: Color(0xFFF3F4F6)),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          // 2. Add Another Ingredient Input
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Row(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(left: 14, right: 8),
-                  child: Icon(Icons.add_circle_outline_rounded, color: AppTheme.primary, size: 20),
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _ingredientInputController,
-                    style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF111827)),
-                    decoration: const InputDecoration(
-                      hintText: 'Add another ingredient...',
-                      hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onSubmitted: _addEnteredIngredient,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => _addEnteredIngredient(_ingredientInputController.text),
-                  child: Text(
-                    'Add',
-                    style: GoogleFonts.inter(
-                      color: AppTheme.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // 3. Suggested Commonly Used Ingredients (Quick Add Chips)
-          Text(
-            'Suggested Common Ingredients',
-            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF4B5563)),
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _commonStaples.map((staple) {
-                final isAdded = _enteredIngredients.any((i) => i.toLowerCase() == staple.toLowerCase());
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ActionChip(
-                    label: Text(staple),
-                    backgroundColor: isAdded ? AppTheme.primary.withValues(alpha: 0.1) : const Color(0xFFF9FAFB),
-                    side: BorderSide(
-                      color: isAdded ? AppTheme.primary : const Color(0xFFE5E7EB),
-                      width: 1,
-                    ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    labelStyle: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: isAdded ? FontWeight.w600 : FontWeight.w400,
-                      color: isAdded ? AppTheme.primary : const Color(0xFF374151),
-                    ),
-                    onPressed: () {
-                      if (isAdded) {
-                        _removeEnteredIngredient(staple);
-                      } else {
-                        _addEnteredIngredient(staple);
-                      }
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // 4. Subheading: Recipe Preferences
-          Text(
-            'Recipe Preferences',
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF111827),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Preferences Box
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Servings & Spice Level
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Servings',
-                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle_outline_rounded, size: 20, color: AppTheme.primary),
-                          onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
-                        ),
-                        Text(
-                          '$_servings',
-                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF111827)),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppTheme.primary),
-                          onPressed: _servings < 10 ? () => setState(() => _servings++) : null,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const Divider(height: 16, color: Color(0xFFF3F4F6)),
-
-                // Spice Level
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Spice Level',
-                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
-                    ),
-                    DropdownButton<String>(
-                      value: _spiceLevel,
-                      underline: const SizedBox(),
-                      style: GoogleFonts.inter(
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                      items: _spiceLevels.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                      onChanged: (v) => setState(() => _spiceLevel = v!),
-                    ),
-                  ],
-                ),
-                const Divider(height: 16, color: Color(0xFFF3F4F6)),
-
-                // Diet Goal Chips
-                Text(
-                  'Diet Goal',
-                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
-                ),
-                const SizedBox(height: 8),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _dietOptions.map((opt) {
-                      final isSel = _dietType == opt['name'];
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          avatar: isSel && opt['name'] == 'None'
-                              ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
-                              : null,
-                          label: Text('${opt['emoji']}${opt['label']}'),
-                          selected: isSel,
-                          selectedColor: AppTheme.primary,
-                          backgroundColor: const Color(0xFFF9FAFB),
-                          side: BorderSide(
-                            color: isSel ? AppTheme.primary : const Color(0xFFE5E7EB),
-                          ),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          labelStyle: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
-                            color: isSel ? Colors.white : const Color(0xFF374151),
-                          ),
-                          onSelected: (_) => setState(() => _dietType = opt['name']!),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 5. Dual Bottom Action Buttons ([ Add to Pantry ] & [ Find Recipes ])
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _addToPantryFromEntered,
-                  icon: const Icon(Icons.inventory_2_outlined, size: 16),
-                  label: const Text('Add to Pantry', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primary,
-                    side: const BorderSide(color: AppTheme.primary, width: 1.5),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton.icon(
-                  onPressed: _onFindRecipesFromEntered,
-                  icon: const Icon(Icons.restaurant_menu_rounded, size: 16),
-                  label: const Text('Find Recipes', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // -------------------------------------------------------------
-  // KITCHEN OVERVIEW (4 Compact Stat Cards in One Row on Desktop)
-  // -------------------------------------------------------------
-  Widget _buildKitchenOverviewSection(bool isDesktop, bool isTablet) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildHomePage() {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildHeader(),
+            const SizedBox(height: 20),
+            _buildHeroBanner(),
+            const SizedBox(height: 28),
             Text(
-              'Your Kitchen at a Glance',
+              "What's in your kitchen?",
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF111827),
-                letterSpacing: -0.2,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.3,
               ),
-            ),
-            TextButton(
-              onPressed: () => _onNavTabChanged(2),
-              child: Text(
-                'View Pantry →',
-                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
+            ).animate().fadeIn(delay: 150.ms),
+            const SizedBox(height: 4),
+            Text(
+              'Add ingredients and we\'ll suggest personalized recipes',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppTheme.textSecondary,
               ),
-            ),
+            ).animate().fadeIn(delay: 200.ms),
+            const SizedBox(height: 16),
+            _buildIngredientOptions(),
+            const SizedBox(height: 28),
+            _buildQuickAccessSection(),
+            const SizedBox(height: 24),
           ],
         ),
-        const SizedBox(height: 14),
-
-        // 4 Stat Cards Grid Full Width
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isRow = constraints.maxWidth >= 768;
-            if (isRow) {
-              return Row(
-                children: [
-                  Expanded(
-                    child: _statCard(
-                      title: 'Pantry Items',
-                      value: '${_pantryItems.length}',
-                      subtitle: 'In stock at home',
-                      icon: Icons.inventory_2_outlined,
-                      onTap: () => _onNavTabChanged(2),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: _statCard(
-                      title: 'Recipes Ready',
-                      value: '${_recommendedRecipes.length}',
-                      subtitle: 'Ready to cook now',
-                      icon: Icons.restaurant_menu_outlined,
-                      onTap: () => _onNavTabChanged(3),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: _statCard(
-                      title: 'Saved Recipes',
-                      value: '$_savedRecipesCount',
-                      subtitle: 'Favorite dishes',
-                      icon: Icons.bookmark_outline_rounded,
-                      onTap: () => _onNavTabChanged(6),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: _statCard(
-                      title: 'Shopping Items',
-                      value: '$_shoppingItemsCount',
-                      subtitle: 'Items to buy',
-                      icon: Icons.checklist_rounded,
-                      onTap: () => _onNavTabChanged(5),
-                    ),
-                  ),
-                ],
-              );
-            } else {
-              return Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _statCard(
-                          title: 'Pantry Items',
-                          value: '${_pantryItems.length}',
-                          subtitle: 'In stock',
-                          icon: Icons.inventory_2_outlined,
-                          onTap: () => _onNavTabChanged(2),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _statCard(
-                          title: 'Recipes Ready',
-                          value: '${_recommendedRecipes.length}',
-                          subtitle: 'Ready now',
-                          icon: Icons.restaurant_menu_outlined,
-                          onTap: () => _onNavTabChanged(3),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _statCard(
-                          title: 'Saved Recipes',
-                          value: '$_savedRecipesCount',
-                          subtitle: 'Favorites',
-                          icon: Icons.bookmark_outline_rounded,
-                          onTap: () => _onNavTabChanged(6),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _statCard(
-                          title: 'Shopping Items',
-                          value: '$_shoppingItemsCount',
-                          subtitle: 'To buy',
-                          icon: Icons.checklist_rounded,
-                          onTap: () => _onNavTabChanged(5),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            }
-          },
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _statCard({
-    required String title,
-    required String value,
-    required String subtitle,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x04000000),
-              blurRadius: 6,
-              offset: Offset(0, 2),
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Good ${_getGreeting()}! 👋',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _userName.split(' ').first,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.5,
+              ),
             ),
           ],
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(8),
+        GestureDetector(
+          onTap: () => setState(() => _currentIndex = 3),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppTheme.cardBg,
+              borderRadius: AppTheme.radius,
+              border: Border.all(color: AppTheme.divider),
+              boxShadow: AppTheme.cardShadow,
+            ),
+            child: Center(
+              child: Text(
+                _userName.isNotEmpty ? _userName[0].toUpperCase() : 'C',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primary,
+                ),
               ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: AppTheme.primary,
+            ),
+          ),
+        ),
+      ],
+    ).animate().fadeIn();
+  }
+
+  Widget _buildHeroBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: AppTheme.primary,
+        borderRadius: AppTheme.radius,
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primary.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'KitchenMate',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Smart Recipe Finder',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Scan or enter ingredients to discover delicious recipes',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.82),
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EnterIngredientsScreen()),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Get Started →',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text('🍽️', style: TextStyle(fontSize: 54)),
+        ],
+      ),
+    ).animate().fadeIn(delay: 100.ms);
+  }
+
+  Widget _buildIngredientOptions() {
+    return Row(
+      children: [
+        Expanded(
+          child: _OptionCard(
+            emoji: '✏️',
+            title: 'Enter\nIngredients',
+            subtitle: 'Type manually',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EnterIngredientsScreen()),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _OptionCard(
+            emoji: '📷',
+            title: 'Scan\nIngredients',
+            subtitle: 'Upload photo',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ScanIngredientsScreen()),
+            ),
+          ),
+        ),
+      ],
+    ).animate().fadeIn(delay: 250.ms);
+  }
+
+  Widget _buildQuickAccessSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Access',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Row 1: Pantry (🫙) & Shopping List (📝) in clean white cards
+        Row(
+          children: [
+            Expanded(
+              child: _QuickActionCard(
+                emoji: '🫙',
+                title: 'Pantry',
+                subtitle: 'Items at home',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PantryScreen()),
+                ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF111827),
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  Text(
-                    title,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF374151),
-                    ),
-                  ),
-                ],
+              child: _QuickActionCard(
+                emoji: '📝',
+                title: 'Shopping List',
+                subtitle: 'Items to buy',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ShoppingListScreen()),
+                ),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // -------------------------------------------------------------
-  // RECOMMENDED FOR YOU (100% Strictly Matched to My Pantry)
-  // -------------------------------------------------------------
-  Widget _buildRecommendedRecipesSection(bool isDesktop, bool isTablet) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+        const SizedBox(height: 12),
+        // Row 2: Favorites (❤️), Meal Plan (📅), Profile (👤) in matching white cards
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Recommended for You',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF111827),
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Recipes matching all available ingredients in My Pantry',
-                  style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B7280)),
-                ),
-              ],
+            Expanded(
+              child: _QuickActionCard(
+                emoji: '❤️',
+                title: 'Favorites',
+                subtitle: 'Saved dishes',
+                onTap: () => setState(() => _currentIndex = 1),
+              ),
             ),
-            TextButton(
-              onPressed: () => _onNavTabChanged(2),
-              child: Text(
-                'Update Pantry →',
-                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _QuickActionCard(
+                emoji: '📅',
+                title: 'Meal Plan',
+                subtitle: 'Weekly schedule',
+                onTap: () => setState(() => _currentIndex = 2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _QuickActionCard(
+                emoji: '👤',
+                title: 'Profile',
+                subtitle: 'Account info',
+                onTap: () => setState(() => _currentIndex = 3),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-
-        // Grid of 100% Matched Recipes (Full Width)
-        _isLoadingData
-            ? const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator(color: AppTheme.primary)))
-            : _recommendedRecipes.isEmpty
-                ? _buildEmptyRecipesState()
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = constraints.maxWidth;
-                      int crossAxisCount = 4;
-                      if (width < 600) {
-                        crossAxisCount = 1;
-                      } else if (width < 960) {
-                        crossAxisCount = 2;
-                      }
-
-                      return GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 14,
-                          mainAxisExtent: 220,
-                        ),
-                        itemCount: _recommendedRecipes.length,
-                        itemBuilder: (context, index) {
-                          return _buildRecipeCard(_recommendedRecipes[index]);
-                        },
-                      );
-                    },
-                  ),
       ],
-    );
+    ).animate().fadeIn(delay: 350.ms);
   }
 
-  Widget _buildRecipeCard(Recipe recipe) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x04000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Badge and Cooking Time
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    recipe.cuisine,
-                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF4B5563)),
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF6B7280)),
-                    const SizedBox(width: 4),
-                    Text('${recipe.cookingTimeMinutes}m', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF6B7280))),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Recipe Name
-            Text(
-              recipe.title,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF111827),
-                letterSpacing: -0.2,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-
-            // Clean 100% Pantry Match Badge (No match % or missing count)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.check_circle_rounded, size: 11, color: Color(0xFF166534)),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Ready to Cook',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF166534),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Spacer(),
-
-            // View Recipe CTA
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFE5E7EB)),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                ),
-                child: Text(
-                  'View Recipe',
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyRecipesState() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.inventory_2_outlined, size: 36, color: Color(0xFF9CA3AF)),
-          const SizedBox(height: 14),
-          Text(
-            'No recipes available with your current pantry ingredients.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF111827),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Add more ingredients to My Pantry to discover recipes you can make.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF6B7280)),
-          ),
-          const SizedBox(height: 18),
-          ElevatedButton.icon(
-            onPressed: () => _onNavTabChanged(2),
-            icon: const Icon(Icons.add_rounded, size: 16),
-            label: const Text('Add to My Pantry'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // -------------------------------------------------------------
-  // MOBILE BOTTOM NAVIGATION (Only for narrow mobile screens)
-  // -------------------------------------------------------------
-  Widget _buildMobileBottomNav() {
+  Widget _buildBottomNav() {
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE5E7EB), width: 1)),
+        color: AppTheme.cardBg,
+        border: Border(top: BorderSide(color: AppTheme.divider, width: 1)),
       ),
       child: BottomNavigationBar(
-        currentIndex: _activeNavIndex > 5 ? 0 : _activeNavIndex,
-        onTap: (i) => _onNavTabChanged(i),
+        currentIndex: _currentIndex,
+        onTap: (i) => setState(() => _currentIndex = i),
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.cardBg,
         selectedItemColor: AppTheme.primary,
-        unselectedItemColor: const Color(0xFF9CA3AF),
-        selectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 10),
-        unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 10),
+        unselectedItemColor: AppTheme.textTertiary,
+        selectedLabelStyle: GoogleFonts.inter(
+          fontWeight: FontWeight.w600,
+          fontSize: 11,
+        ),
+        unselectedLabelStyle: GoogleFonts.inter(
+          fontWeight: FontWeight.w500,
+          fontSize: 11,
+        ),
         elevation: 0,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined, size: 20),
-            activeIcon: Icon(Icons.home_rounded, size: 20),
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.home_outlined, size: 22),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.home_rounded, size: 22),
+            ),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.edit_note_rounded, size: 20),
-            activeIcon: Icon(Icons.edit_note_rounded, size: 20),
-            label: 'Enter',
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.bookmark_outline_rounded, size: 22),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.bookmark_rounded, size: 22),
+            ),
+            label: 'Favorites',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.photo_camera_outlined, size: 20),
-            activeIcon: Icon(Icons.photo_camera_rounded, size: 20),
-            label: 'Scan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined, size: 20),
-            activeIcon: Icon(Icons.inventory_2_rounded, size: 20),
-            label: 'Pantry',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined, size: 20),
-            activeIcon: Icon(Icons.calendar_today_rounded, size: 20),
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.calendar_today_outlined, size: 20),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.calendar_today_rounded, size: 20),
+            ),
             label: 'Planner',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.checklist_rounded, size: 20),
-            activeIcon: Icon(Icons.checklist_rounded, size: 20),
-            label: 'Shopping',
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.person_outline_rounded, size: 22),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.person_rounded, size: 22),
+            ),
+            label: 'Profile',
           ),
         ],
+      ),
+    );
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Morning';
+    if (hour < 17) return 'Afternoon';
+    return 'Evening';
+  }
+}
+
+class _OptionCard extends StatelessWidget {
+  final String emoji, title, subtitle;
+  final VoidCallback onTap;
+
+  const _OptionCard({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.cardBg,
+          borderRadius: AppTheme.radius,
+          border: Border.all(color: AppTheme.divider),
+          boxShadow: AppTheme.cardShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 26)),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                height: 1.25,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionCard extends StatelessWidget {
+  final String emoji, title, subtitle;
+  final VoidCallback onTap;
+
+  const _QuickActionCard({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppTheme.cardBg,
+          borderRadius: AppTheme.radius,
+          border: Border.all(color: AppTheme.divider),
+          boxShadow: AppTheme.cardShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 22)),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.1,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }

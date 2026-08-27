@@ -34,19 +34,13 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
 
   final List<String> _spiceLevels = ['Mild', 'Medium', 'Spicy', 'Extra Spicy'];
 
-  final List<Map<String, String>> _dietOptions = [
-    {'name': 'None', 'label': 'None', 'emoji': ''},
-    {'name': 'Vegetarian', 'label': 'Vegetarian', 'emoji': '🥦 '},
-    {'name': 'Vegan', 'label': 'Vegan', 'emoji': '🌱 '},
-    {'name': 'High-Protein', 'label': 'High-Protein', 'emoji': '💪 '},
-    {'name': 'Diabetic-Friendly', 'label': 'Diabetic-Friendly', 'emoji': '🩺 '},
-    {'name': 'Weight-Loss', 'label': 'Weight-Loss', 'emoji': '⚖️ '},
-  ];
-
-  static const List<String> _commonIngredients = [
-    'Onion', 'Tomato', 'Garlic', 'Potato', 'Rice', 'Eggs',
-    'Chicken', 'Milk', 'Butter', 'Spinach', 'Paneer', 'Pasta',
-    'Cheese', 'Carrot', 'Bell Pepper', 'Broccoli', 'Cucumber', 'Cauliflower',
+  final List<String> _dietOptions = [
+    'None',
+    'Vegetarian',
+    'Vegan',
+    'High-Protein',
+    'Diabetic-Friendly',
+    'Weight-Loss',
   ];
 
   @override
@@ -582,57 +576,8 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Suggested Common Ingredients (Quick Add)
-        const SizedBox(height: 16),
-        Text(
-          'Suggested Common Ingredients',
-          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF4B5563)),
-        ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: _commonIngredients.map((staple) {
-              final isAdded = _detectedIngredients.any((i) => i.toLowerCase() == staple.toLowerCase());
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ActionChip(
-                  label: Text(staple),
-                  backgroundColor: isAdded ? AppTheme.primary.withValues(alpha: 0.1) : const Color(0xFFF9FAFB),
-                  side: BorderSide(
-                    color: isAdded ? AppTheme.primary : const Color(0xFFE5E7EB),
-                    width: 1,
-                  ),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  labelStyle: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: isAdded ? FontWeight.w600 : FontWeight.w400,
-                    color: isAdded ? AppTheme.primary : const Color(0xFF374151),
-                  ),
-                  onPressed: () {
-                    if (isAdded) {
-                      _removeIngredient(staple);
-                    } else {
-                      _manualAddController.text = staple;
-                      _manualAdd();
-                    }
-                  },
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        Text(
-          'Recipe Preferences',
-          style: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF111827),
-          ),
-        ),
-        const SizedBox(height: 12),
+        Text('Recipe Preferences', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        const SizedBox(height: 10),
         _buildPreferencesCard(),
         const SizedBox(height: 24),
 
@@ -641,29 +586,25 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: _addToPantry,
-                icon: const Icon(Icons.inventory_2_outlined, size: 16),
-                label: const Text('Add to Pantry', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                label: const Text('Add to Pantry'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.primary,
-                  side: const BorderSide(color: AppTheme.primary, width: 1.5),
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
                 ),
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
-              flex: 2,
               child: ElevatedButton.icon(
                 onPressed: _findRecipes,
-                icon: const Icon(Icons.restaurant_menu_rounded, size: 16),
-                label: const Text('Find Recipes', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                icon: const Icon(Icons.restaurant_menu_rounded, size: 18),
+                label: const Text('Find Recipes'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
                 ),
               ),
             ),
@@ -677,9 +618,10 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
+        border: Border.all(color: AppTheme.divider),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -689,33 +631,31 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
             children: [
               Text(
                 'Servings',
-                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13, color: AppTheme.textPrimary),
               ),
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.remove_circle_outline_rounded, size: 20, color: AppTheme.primary),
+                    icon: const Icon(Icons.remove_circle_outline_rounded, color: AppTheme.textSecondary, size: 20),
                     onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
                   ),
-                  Text(
-                    '$_servings',
-                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF111827)),
-                  ),
+                  Text('$_servings', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.textPrimary)),
                   IconButton(
-                    icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppTheme.primary),
+                    icon: const Icon(Icons.add_circle_outline_rounded, color: AppTheme.textSecondary, size: 20),
                     onPressed: _servings < 10 ? () => setState(() => _servings++) : null,
                   ),
                 ],
               ),
             ],
           ),
-          const Divider(height: 16, color: Color(0xFFF3F4F6)),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Spice Level',
-                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13, color: AppTheme.textPrimary),
               ),
               DropdownButton<String>(
                 value: _spiceLevel,
@@ -730,37 +670,36 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
               ),
             ],
           ),
-          const Divider(height: 16, color: Color(0xFFF3F4F6)),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
           Text(
-            'Diet Goal',
-            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
+            'Dietary Goal',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13, color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: _dietOptions.map((opt) {
-                final isSel = _dietType == opt['name'];
+                final isSel = _dietType == opt;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    avatar: isSel && opt['name'] == 'None'
-                        ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
-                        : null,
-                    label: Text('${opt['emoji']}${opt['label']}'),
+                  child: FilterChip(
+                    label: Text(opt),
                     selected: isSel,
-                    selectedColor: AppTheme.primary,
-                    backgroundColor: const Color(0xFFF9FAFB),
+                    selectedColor: AppTheme.primary.withValues(alpha: 0.1),
+                    checkmarkColor: AppTheme.primary,
                     side: BorderSide(
-                      color: isSel ? AppTheme.primary : const Color(0xFFE5E7EB),
+                      color: isSel ? AppTheme.primary : AppTheme.divider,
+                      width: 1,
                     ),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     labelStyle: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
-                      color: isSel ? Colors.white : const Color(0xFF374151),
+                      color: isSel ? AppTheme.primary : AppTheme.textPrimary,
                     ),
-                    onSelected: (_) => setState(() => _dietType = opt['name']!),
+                    onSelected: (_) => setState(() => _dietType = opt),
                   ),
                 );
               }).toList(),
