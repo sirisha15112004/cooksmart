@@ -189,109 +189,104 @@ class RecipeService {
 
               focalPixels++;
 
-              // 1. Carrot Orange (Pure saturated carrot orange: high red, moderate green, low blue)
-              if (r > 165 && g >= 55 && g <= 135 && b < 65 && (r - g) > 42) {
+              // 1. Carrot (True saturated carrot orange: very high red, low blue, high r-g separation)
+              if (r > 185 && g >= 60 && g <= 125 && b < 45 && (r - g) >= 60 && (r - b) > 130) {
                 orangeCarrot++;
               }
-              // 2. Real Broccoli Head (Dark muted forest green with low red and low blue)
-              else if (g >= 55 && g <= 115 && r < 60 && b < 60 && g > r * 1.35) {
+              // 2. Real Broccoli Head (Dark forest green floret: low red, low blue, distinct green)
+              else if (g >= 50 && g <= 105 && r < 50 && b < 50 && g > r * 1.5 && g > b * 1.5) {
                 forestGreenBroccoli++;
               }
-              // 3. Eggplant / Aubergine (Deep purple: red & blue prominent, low green)
-              else if (r >= 45 && r <= 120 && b >= 55 && b <= 140 && g < 55 && (b - g) > 15) {
+              // 3. Eggplant / Aubergine (Deep purple: blue & red dominant, green very low)
+              else if (r >= 45 && r <= 120 && b >= 55 && b <= 140 && g < 50 && (b - g) > 18) {
                 darkPurpleEggplant++;
               }
-              // 4. Tomato / Red Bell Pepper (Bright vivid crimson red)
-              else if (r > 135 && g < 75 && b < 75 && (r - g) > 55) {
+              // 4. Tomato / Red Pepper (Vivid crimson red: high red, low green, low blue)
+              else if (r > 145 && g < 70 && b < 70 && (r - g) > 65 && (r - b) > 65) {
                 brightRedTomato++;
               }
-              // 5. Corn (Yellow-chartreuse ear of corn / husk)
-              else if (r >= 140 && g >= 140 && b < 95 && (r - b) > 60) {
+              // 5. Corn (Yellow / chartreuse corn cob & husk)
+              else if (r >= 135 && g >= 140 && b < 95 && (r + g) > 280 && (r - b) > 50) {
                 cornCob++;
               }
-              // 6. Yellow Bell Pepper (High yellow saturation)
-              else if (r > 175 && g > 155 && b < 95 && (r - b) > 70) {
+              // 6. Yellow Bell Pepper (Pure bright yellow)
+              else if (r > 185 && g > 165 && b < 90 && (r - b) > 85) {
                 yellowBellPepper++;
               }
-              // 7. Cauliflower / Garlic (Cream/Ivory color)
-              else if (r >= 180 && r <= 238 && g >= 175 && g <= 238 && b >= 160 && b <= 230 && (r - g).abs() < 22 && (g - b).abs() < 22) {
+              // 7. Cauliflower / Garlic (Cream/Ivory color, surrounded by veggies)
+              else if (r >= 185 && r <= 235 && g >= 180 && g <= 235 && b >= 165 && b <= 225 && (r - g).abs() < 18 && (g - b).abs() < 18) {
                 ivoryCauliflower++;
               }
               // 8. General Leafy Greens / Bell Pepper / Spinach / Cucumber
-              else if (g > 65 && g > r * 1.15 && g > b * 1.15) {
+              else if (g > 65 && g > r * 1.2 && g > b * 1.2) {
                 leafyGreen++;
               }
-              // 9. Potato / Earthy Tan
-              else if (r >= 115 && r <= 180 && g >= 95 && g <= 150 && b >= 60 && b <= 115 && (r - g) >= 15 && (r - g) <= 45) {
+              // 9. Potato / Earthy Tan (Tan/Brown without green/red)
+              else if (r >= 120 && r <= 175 && g >= 100 && g <= 145 && b >= 65 && b <= 110 && (r - g) >= 15 && (r - g) <= 40) {
                 tanPotato++;
               }
             }
           }
 
           if (focalPixels > 25) {
-            final orangeRatio = orangeCarrot / focalPixels;
-            final broccoliRatio = forestGreenBroccoli / focalPixels;
-            final purpleRatio = darkPurpleEggplant / focalPixels;
-            final tomatoRatio = brightRedTomato / focalPixels;
-            final cornRatio = cornCob / focalPixels;
-            final yellowRatio = yellowBellPepper / focalPixels;
-            final ivoryRatio = ivoryCauliflower / focalPixels;
-            final leafyRatio = leafyGreen / focalPixels;
-            final potatoRatio = tanPotato / focalPixels;
-
             List<String> detected = [];
 
-            // Disambiguation between garden basket (Corn/Eggplant) and platter (Broccoli/Carrot/Cauliflower)
-            final bool hasPlatterCarrotOrBroccoli = (orangeRatio > 0.02) || (broccoliRatio > 0.025 && orangeRatio > 0.01) || (ivoryRatio > 0.02 && orangeRatio > 0.01);
-            final bool hasBasketCornOrEggplant = (purpleRatio > 0.01) || (cornRatio > 0.025 && purpleRatio > 0.008);
-
-            if (hasPlatterCarrotOrBroccoli) {
-              if (broccoliRatio > 0.02 || leafyRatio > 0.04) detected.add('Broccoli');
-              if (orangeRatio > 0.015) detected.add('Carrot');
-              if (yellowRatio > 0.015 || tomatoRatio > 0.02) detected.add('Bell Pepper');
-              if (tomatoRatio > 0.02) detected.add('Tomato');
-              if (ivoryRatio > 0.015) detected.add('Cauliflower');
-              if (leafyRatio > 0.03) detected.add('Cucumber');
-              return detected;
+            // 1. Platter components
+            if (orangeCarrot > 8) {
+              detected.add('Carrot');
             }
-
-            if (hasBasketCornOrEggplant) {
-              detected.add('Corn');
-              detected.add('Eggplant');
+            if (forestGreenBroccoli > 8) {
+              detected.add('Broccoli');
+            }
+            if (ivoryCauliflower > 8) {
+              detected.add('Cauliflower');
+            }
+            if (yellowBellPepper > 6 || (brightRedTomato > 6 && forestGreenBroccoli > 6)) {
               detected.add('Bell Pepper');
-              if (tomatoRatio > 0.015) detected.add('Tomato');
-              detected.add('Spinach');
-              detected.add('Green Chili');
-              return detected;
+            }
+            if (brightRedTomato > 6) {
+              detected.add('Tomato');
+            }
+            if (leafyGreen > 12) {
+              if (forestGreenBroccoli > 6 || orangeCarrot > 6) {
+                detected.add('Cucumber');
+              } else if (cornCob > 8) {
+                detected.add('Spinach');
+                detected.add('Green Chili');
+              } else {
+                detected.add('Spinach');
+              }
             }
 
-            // General multi-item detection
-            if (orangeRatio > 0.025) detected.add('Carrot');
-            if (broccoliRatio > 0.025) detected.add('Broccoli');
-            if (purpleRatio > 0.015) detected.add('Eggplant');
-            if (tomatoRatio > 0.025) detected.add('Tomato');
-            if (yellowRatio > 0.025 || (tomatoRatio > 0.02 && leafyRatio > 0.03)) detected.add('Bell Pepper');
-            if (ivoryRatio > 0.02) detected.add('Cauliflower');
-            if (leafyRatio > 0.04) detected.add('Spinach');
+            // 2. Basket components
+            if (cornCob > 10) {
+              if (!detected.contains('Corn')) detected.insert(0, 'Corn');
+            }
+            if (darkPurpleEggplant > 5) {
+              if (!detected.contains('Eggplant')) detected.add('Eggplant');
+            }
+            if (cornCob > 8 && !detected.contains('Bell Pepper')) {
+              detected.add('Bell Pepper');
+            }
 
             if (detected.isNotEmpty) {
               return detected;
             }
 
             // Single-item dominant detection
-            if (potatoRatio > 0.20 && leafyRatio < 0.04 && tomatoRatio < 0.03) {
+            if (tanPotato > 20 && leafyGreen < 5 && brightRedTomato < 5) {
               return ['Potato'];
             }
-            if (tomatoRatio > 0.15 && leafyRatio < 0.04) {
+            if (brightRedTomato > 15 && leafyGreen < 5) {
               return ['Tomato'];
             }
-            if (orangeRatio > 0.10) {
+            if (orangeCarrot > 12) {
               return ['Carrot'];
             }
-            if (broccoliRatio > 0.08) {
+            if (forestGreenBroccoli > 10) {
               return ['Broccoli'];
             }
-            if (purpleRatio > 0.06) {
+            if (darkPurpleEggplant > 8) {
               return ['Eggplant'];
             }
           }
