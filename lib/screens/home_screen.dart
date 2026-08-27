@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/recipe_model.dart';
+import '../services/api_service.dart';
+import '../services/recipe_service.dart';
 import '../theme/app_theme.dart';
 import 'ingredients/enter_ingredients_screen.dart';
 import 'ingredients/scan_ingredients_screen.dart';
@@ -9,6 +13,7 @@ import 'meal_planner/meal_planner_screen.dart';
 import 'favorites_screen.dart';
 import 'profile_screen.dart';
 import 'pantry/pantry_screen.dart';
+import 'recipes/recipe_detail_screen.dart';
 import 'shopping/shopping_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,18 +26,130 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   String _userName = 'Chef';
+  int _userId = 0;
+
+  List<String> _pantryItems = [];
+  List<Recipe> _recommendedRecipes = [];
+  final Set<String> _favoriteRecipeIds = {};
+  bool _isLoadingRecommendations = true;
+
+  final RecipeService _recipeService = RecipeService();
 
   @override
   void initState() {
     super.initState();
-    _loadUser();
+    _loadUserAndPantry();
   }
 
-  Future<void> _loadUser() async {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadPantryRecommendations();
+  }
+
+  Future<void> _loadUserAndPantry() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userName = prefs.getString('userName') ?? 'Chef';
+      _userId = prefs.getInt('userId') ?? 0;
     });
+    await _loadPantryRecommendations();
+  }
+
+  Future<void> _loadPantryRecommendations() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPantry = prefs.getStringList('pantry_ingredients') ?? [];
+    final favList = prefs.getStringList('favorite_recipes') ?? [];
+
+    setState(() {
+      _pantryItems = savedPantry;
+      _favoriteRecipeIds.clear();
+      _favoriteRecipeIds.addAll(favList);
+      _isLoadingRecommendations = true;
+    });
+
+    if (savedPantry.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _recommendedRecipes = [];
+          _isLoadingRecommendations = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final resultMap = await _recipeService.getRecipes(
+        ingredients: savedPantry,
+        servings: 2,
+        spiceLevel: 'Medium',
+      );
+
+      final List<Recipe> combined = [
+        ...resultMap['fullMatch'] ?? [],
+        ...resultMap['partialMatch'] ?? [],
+        ...resultMap['alternatives'] ?? [],
+      ];
+
+      // Prioritize recipes with the highest number of matching pantry ingredients
+      combined.sort((a, b) {
+        final aMatches = _getMatchingPantryIngredients(a).length;
+        final bMatches = _getMatchingPantryIngredients(b).length;
+        return bMatches.compareTo(aMatches);
+      });
+
+      if (mounted) {
+        setState(() {
+          _recommendedRecipes = combined.take(4).toList();
+          _isLoadingRecommendations = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _recommendedRecipes = [];
+          _isLoadingRecommendations = false;
+        });
+      }
+    }
+  }
+
+  bool _isInPantry(String recipeIngredient) {
+    final lowerRec = recipeIngredient.toLowerCase();
+    return _pantryItems.any((p) {
+      final lowerP = p.trim().toLowerCase();
+      if (lowerP.isEmpty) return false;
+      return lowerRec.contains(lowerP) || lowerP.contains(lowerRec);
+    });
+  }
+
+  List<String> _getMatchingPantryIngredients(Recipe recipe) {
+    return recipe.ingredients.where((ing) => _isInPantry(ing)).toList();
+  }
+
+  List<String> _getMissingIngredients(Recipe recipe) {
+    return recipe.ingredients.where((ing) => !_isInPantry(ing)).toList();
+  }
+
+  Future<void> _toggleFavorite(Recipe recipe) async {
+    final prefs = await SharedPreferences.getInstance();
+    final recipeKey = recipe.id.isNotEmpty ? recipe.id : recipe.title;
+
+    setState(() {
+      if (_favoriteRecipeIds.contains(recipeKey)) {
+        _favoriteRecipeIds.remove(recipeKey);
+      } else {
+        _favoriteRecipeIds.add(recipeKey);
+      }
+    });
+
+    await prefs.setStringList('favorite_recipes', _favoriteRecipeIds.toList());
+
+    if (int.tryParse(recipe.id) != null) {
+      try {
+        await ApiService.toggleFavorite(int.parse(recipe.id));
+      } catch (_) {}
+    }
   }
 
   @override
@@ -81,6 +198,11 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             _buildIngredientOptions(),
             const SizedBox(height: 28),
+
+            // ONLY NEW SECTION: Recommended Recipes
+            _buildRecommendedRecipesSection(),
+            const SizedBox(height: 28),
+
             _buildQuickAccessSection(),
             const SizedBox(height: 24),
           ],
@@ -204,7 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const EnterIngredientsScreen()),
-                  ),
+                  ).then((_) => _loadPantryRecommendations()),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
@@ -242,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const EnterIngredientsScreen()),
-            ),
+            ).then((_) => _loadPantryRecommendations()),
           ),
         ),
         const SizedBox(width: 12),
@@ -254,11 +376,402 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const ScanIngredientsScreen()),
-            ),
+            ).then((_) => _loadPantryRecommendations()),
           ),
         ),
       ],
     ).animate().fadeIn(delay: 250.ms);
+  }
+
+  // -------------------------------------------------------------
+  // RECOMMENDED RECIPES SECTION (Based on available Pantry items)
+  // -------------------------------------------------------------
+  Widget _buildRecommendedRecipesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recommended Recipes',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Personalized using items currently in your pantry',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            if (_pantryItems.isNotEmpty)
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PantryScreen()),
+                ).then((_) => _loadPantryRecommendations()),
+                child: Text(
+                  'My Pantry →',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primary,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        if (_pantryItems.isEmpty)
+          _buildEmptyPantryCard()
+        else if (_isLoadingRecommendations)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: AppTheme.cardBg,
+              borderRadius: AppTheme.radius,
+              border: Border.all(color: AppTheme.divider),
+              boxShadow: AppTheme.cardShadow,
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+              ),
+            ),
+          )
+        else if (_recommendedRecipes.isEmpty)
+          _buildNoRecipesCard()
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _recommendedRecipes.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 14),
+            itemBuilder: (context, index) {
+              return _buildRecipeCard(_recommendedRecipes[index]);
+            },
+          ),
+      ],
+    ).animate().fadeIn(delay: 300.ms);
+  }
+
+  Widget _buildEmptyPantryCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
+        border: Border.all(color: AppTheme.divider),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        children: [
+          const Text('🫙', style: TextStyle(fontSize: 36)),
+          const SizedBox(height: 10),
+          Text(
+            'Your pantry is empty',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Add ingredients to your Pantry to get personalized recipe recommendations.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: AppTheme.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PantryScreen()),
+            ).then((_) => _loadPantryRecommendations()),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Add Ingredients'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoRecipesCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
+        border: Border.all(color: AppTheme.divider),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        children: [
+          const Text('🍲', style: TextStyle(fontSize: 32)),
+          const SizedBox(height: 8),
+          Text(
+            'No matching recipes found',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Add more items to your Pantry to discover dishes you can cook.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecipeCard(Recipe recipe) {
+    final matched = _getMatchingPantryIngredients(recipe);
+    final missing = _getMissingIngredients(recipe);
+    final recipeKey = recipe.id.isNotEmpty ? recipe.id : recipe.title;
+    final isFav = _favoriteRecipeIds.contains(recipeKey);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
+        border: Border.all(color: AppTheme.divider),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row: Thumbnail / Cuisine Badge, Title & Favorite Button
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Recipe Image / Visual Emblem
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.divider),
+                ),
+                child: Center(
+                  child: Text(
+                    _getCuisineEmoji(recipe.cuisine),
+                    style: const TextStyle(fontSize: 26),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Title and Description
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      recipe.title,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    if (recipe.description.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        recipe.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // Favorite Button
+              IconButton(
+                icon: Icon(
+                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  color: isFav ? AppTheme.errorColor : AppTheme.textTertiary,
+                  size: 22,
+                ),
+                onPressed: () => _toggleFavorite(recipe),
+                tooltip: isFav ? 'Remove from favorites' : 'Save to favorites',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Matching Pantry Ingredients Section
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.divider),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF16A34A)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Uses ${matched.length} of your pantry ingredients',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF166534),
+                      ),
+                    ),
+                  ],
+                ),
+                if (matched.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: matched.map((ing) {
+                      return Text(
+                        '✓ $ing',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF374151),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+                if (missing.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Missing (${missing.length}):',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF9CA3AF),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: missing.take(3).map((ing) {
+                      return Text(
+                        '• $ing',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: const Color(0xFF6B7280),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Nutrition Info & View Recipe Action
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.local_fire_department_outlined, size: 16, color: Color(0xFFEA580C)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${recipe.nutrition.calories} kcal',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('•', style: TextStyle(color: AppTheme.textTertiary)),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.schedule_rounded, size: 14, color: AppTheme.textSecondary),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${recipe.cookingTimeMinutes}m',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
+                  ).then((_) => _loadPantryRecommendations());
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('View Recipe', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getCuisineEmoji(String cuisine) {
+    final lower = cuisine.toLowerCase();
+    if (lower.contains('indian')) return '🍛';
+    if (lower.contains('italian')) return '🍝';
+    if (lower.contains('mexican')) return '🌮';
+    if (lower.contains('asian') || lower.contains('chinese')) return '🍜';
+    if (lower.contains('salad') || lower.contains('healthy')) return '🥗';
+    if (lower.contains('soup')) return '🍲';
+    return '🍽️';
   }
 
   Widget _buildQuickAccessSection() {
@@ -286,7 +799,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const PantryScreen()),
-                ),
+                ).then((_) => _loadPantryRecommendations()),
               ),
             ),
             const SizedBox(width: 12),
