@@ -61,7 +61,7 @@ class _SplashScreenState extends State<SplashScreen> {
                         curve: Curves.elasticOut),
                 const SizedBox(height: 24),
                 Text(
-                  'CookSmart',
+                  'KitchenMate',
                   style: GoogleFonts.playfairDisplay(
                     fontSize: 40,
                     fontWeight: FontWeight.w800,

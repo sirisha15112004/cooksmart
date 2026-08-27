@@ -1,5 +1,5 @@
 name: cooksmart_app
-description: CookSmart recipe and meal planner app.
+description: KitchenMate recipe, pantry and meal planner app.
 publish_to: 'none'
 
 version: 1.0.0+1

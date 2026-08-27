@@ -137,7 +137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  Text('How would you rate CookSmart?',
+                  Text('How would you rate KitchenMate?',
                       style: GoogleFonts.dmSans(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -325,7 +325,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
       {
         'icon': Icons.info_outline_rounded,
-        'label': 'About CookSmart',
+        'label': 'About KitchenMate',
         'subtitle': 'Version 1.0.0',
         'color': const Color(0xFF6A1B9A),
         'onTap': () {},
@@ -410,7 +410,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ).animate().fadeIn(delay: 400.ms),
                   const SizedBox(height: 16),
-                  Text('CookSmart v1.0.0',
+                  Text('KitchenMate v1.0.0',
                       style: GoogleFonts.dmSans(
                           color: AppTheme.textSecondary, fontSize: 12))
                       .animate().fadeIn(delay: 500.ms),

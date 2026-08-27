@@ -1,11 +1,11 @@
 {
-    "name": "cooksmart_app",
-    "short_name": "cooksmart_app",
+    "name": "KitchenMate",
+    "short_name": "KitchenMate",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "KitchenMate - Smart Recipe Finder, Pantry & Meal Planner.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

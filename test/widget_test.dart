@@ -5,7 +5,7 @@ import 'package:cooksmart_app/main.dart';
 import 'package:cooksmart_app/models/recipe_model.dart';
 import 'package:cooksmart_app/models/shopping_item.dart';
 
-/// Dynamic Data Generators for CookSmart Test Suite
+/// Dynamic Data Generators for KitchenMate Test Suite
 class DynamicTestDataFactory {
   static final _random = Random(DateTime.now().millisecondsSinceEpoch);
 
@@ -182,7 +182,7 @@ void main() {
       expect(find.byKey(const Key('favorite_icon')), findsOneWidget);
     });
 
-    testWidgets('CookSmart Main App loads successfully smoke test', (WidgetTester tester) async {
+    testWidgets('KitchenMate Main App loads successfully smoke test', (WidgetTester tester) async {
       await tester.pumpWidget(const RecipeApp());
       expect(find.byType(RecipeApp), findsOneWidget);
       await tester.pumpAndSettle(const Duration(seconds: 4));

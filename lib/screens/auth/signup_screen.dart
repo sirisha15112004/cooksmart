@@ -128,7 +128,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Join CookSmart\ntoday! 🥗',
+                      Text('Join KitchenMate\ntoday! 🥗',
                           style: Theme.of(context).textTheme.displayLarge)
                           .animate().fadeIn().slideX(begin: -0.2),
                       const SizedBox(height: 8),
