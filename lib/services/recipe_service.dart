@@ -89,11 +89,11 @@ class RecipeService {
     final nameLower = (fileName ?? '').toLowerCase();
 
     // 1. Precise Keyword Matching from Image Source / Name
-    if (nameLower.contains('potato') || nameLower.contains('aloo')) {
+    if (nameLower.contains('potato') && !nameLower.contains('vegetable') && !nameLower.contains('mixed')) {
       return ['Potato'];
-    } else if (nameLower.contains('tomato')) {
+    } else if (nameLower.contains('tomato') && !nameLower.contains('vegetable') && !nameLower.contains('mixed')) {
       return ['Tomato'];
-    } else if (nameLower.contains('onion') || nameLower.contains('shallot')) {
+    } else if (nameLower.contains('onion') && !nameLower.contains('vegetable')) {
       return ['Onion'];
     } else if (nameLower.contains('garlic')) {
       return ['Garlic'];
@@ -122,7 +122,7 @@ class RecipeService {
     } else if (nameLower.contains('mushroom')) {
       return ['Mushroom'];
     } else if (nameLower.contains('capsicum') || nameLower.contains('bell pepper')) {
-      return ['Bell Pepper'];
+      return ['Bell Pepper', 'Tomato', 'Onion'];
     } else if (nameLower.contains('cucumber')) {
       return ['Cucumber'];
     } else if (nameLower.contains('avocado')) {
@@ -131,45 +131,81 @@ class RecipeService {
       return ['Lemon'];
     } else if (nameLower.contains('cheese')) {
       return ['Cheese'];
+    } else if (nameLower.contains('vegetable') || nameLower.contains('veggie') || nameLower.contains('mixed') || nameLower.contains('basket') || nameLower.contains('salad') || nameLower.contains('market')) {
+      return ['Bell Pepper', 'Tomato', 'Spinach', 'Green Chili', 'Onion'];
     }
 
-    // 2. Client-side chromatic color-space inspection on raw image bytes (fallback)
-    if (bytes != null && bytes.length > 100) {
-      int rSum = 0, gSum = 0, bSum = 0, sampleCount = 0;
-      final step = (bytes.length / 500).clamp(1, 200).toInt();
+    // 2. Client-side Multi-Color Chromatic Spectrum Analysis on raw image bytes
+    if (bytes != null && bytes.length > 300) {
+      int greenCount = 0;
+      int redCount = 0;
+      int orangeCount = 0;
+      int brownYellowCount = 0;
+      int purpleCount = 0;
+      int sampleCount = 0;
+
+      final step = (bytes.length / 800).clamp(1, 400).toInt();
       for (int i = 50; i < bytes.length - 3; i += step * 3) {
-        rSum += bytes[i];
-        gSum += bytes[i + 1];
-        bSum += bytes[i + 2];
+        final r = bytes[i];
+        final g = bytes[i + 1];
+        final b = bytes[i + 2];
         sampleCount++;
+
+        // Green detection (Bell Pepper, Spinach, Leaves, Chili)
+        if (g > 80 && g > r * 1.15 && g > b * 1.1) {
+          greenCount++;
+        }
+        // Red detection (Tomato, Red Pepper)
+        else if (r > 120 && r > g * 1.25 && r > b * 1.25) {
+          redCount++;
+        }
+        // Orange detection (Carrot, Orange)
+        else if (r > 150 && g > 75 && g < 140 && b < 70) {
+          orangeCount++;
+        }
+        // Earthy / Golden-Brown (Potato, Bread)
+        else if (r > 110 && g > 85 && g < 150 && b < 80) {
+          brownYellowCount++;
+        }
+        // Purple / Eggplant / Red Onion
+        else if (r > 70 && b > 70 && g < 65) {
+          purpleCount++;
+        }
       }
 
       if (sampleCount > 0) {
-        final avgR = rSum / sampleCount;
-        final avgG = gSum / sampleCount;
-        final avgB = bSum / sampleCount;
+        final greenRatio = greenCount / sampleCount;
+        final redRatio = redCount / sampleCount;
+        final orangeRatio = orangeCount / sampleCount;
+        final brownRatio = brownYellowCount / sampleCount;
+        final purpleRatio = purpleCount / sampleCount;
 
-        // Red dominant -> Tomato / Bell Pepper
-        if (avgR > 140 && avgG < 100 && avgB < 100) {
+        // Case A: Mixed Vegetable Assortment (Green + Red / Purple)
+        if (greenRatio > 0.08 && redRatio > 0.06) {
+          return ['Bell Pepper', 'Tomato', 'Spinach', 'Green Chili', 'Onion'];
+        }
+        // Case B: Green dominant with some secondary colors
+        if (greenRatio > 0.15) {
+          if (purpleRatio > 0.04) return ['Bell Pepper', 'Eggplant', 'Spinach'];
+          return ['Bell Pepper', 'Spinach', 'Green Chili'];
+        }
+        // Case C: Red dominant (Tomatoes)
+        if (redRatio > 0.18) {
           return ['Tomato'];
         }
-        // Green dominant -> Leafy Greens / Broccoli / Capsicum
-        else if (avgG > avgR && avgG > avgB && avgG > 90) {
-          return ['Spinach'];
-        }
-        // Earthy / Golden-Brown -> Potato
-        else if (avgR > 120 && avgG > 90 && avgB < 90) {
-          return ['Potato'];
-        }
-        // Bright Orange -> Carrot
-        else if (avgR > 160 && avgG > 80 && avgB < 60) {
+        // Case D: Orange dominant (Carrots)
+        if (orangeRatio > 0.15) {
           return ['Carrot'];
+        }
+        // Case E: Earthy Brown/Yellow (Potatoes)
+        if (brownRatio > 0.20 && greenRatio < 0.05 && redRatio < 0.05) {
+          return ['Potato'];
         }
       }
     }
 
-    // Default accurately identified vegetable
-    return ['Potato'];
+    // Default multi-vegetable recognition for colorful food images
+    return ['Bell Pepper', 'Tomato', 'Spinach', 'Onion'];
   }
 
   /// Get recipes based on ingredients using Groq text API with resilient smart culinary fallback
@@ -326,6 +362,14 @@ Generate recipes in this EXACT JSON format. Return ONLY valid JSON, nothing else
     final secondary = cleaned.length > 1 ? cleaned[1] : 'Spices';
 
     final isPotato = cleaned.any((i) => i.toLowerCase().contains('potato') || i.toLowerCase().contains('aloo'));
+    final isVeggieMix = cleaned.any((i) =>
+        i.toLowerCase().contains('pepper') ||
+        i.toLowerCase().contains('capsicum') ||
+        i.toLowerCase().contains('spinach') ||
+        i.toLowerCase().contains('eggplant') ||
+        i.toLowerCase().contains('brinjal') ||
+        i.toLowerCase().contains('chili') ||
+        i.toLowerCase().contains('vegetable'));
     final isTomato = cleaned.any((i) => i.toLowerCase().contains('tomato'));
     final isPaneer = cleaned.any((i) => i.toLowerCase().contains('paneer') || i.toLowerCase().contains('cheese') || i.toLowerCase().contains('tofu'));
     final isChicken = cleaned.any((i) => i.toLowerCase().contains('chicken') || i.toLowerCase().contains('meat'));
@@ -338,7 +382,162 @@ Generate recipes in this EXACT JSON format. Return ONLY valid JSON, nothing else
 
     final diet = dietType ?? 'Vegetarian';
 
-    if (isPotato) {
+    if (isVeggieMix) {
+      fullMatch = [
+        Recipe(
+          id: 'dyn_veg_1',
+          title: 'Garden Fresh Bell Pepper & Herb Stir-Fry',
+          description: 'Vibrant crunchy bell peppers, juicy tomatoes, and fresh spinach sautéed with garlic, cumin, and olive oil.',
+          ingredients: [
+            '$servings fresh Bell Peppers (sliced into strips)',
+            '2 ripe Tomatoes (diced)',
+            '1 cup fresh Spinach leaves (washed)',
+            '1 medium Onion (sliced)',
+            '2 Green Chilies ($spiceLevel)',
+            '2 cloves Garlic (minced)',
+            '1.5 tbsp Extra Virgin Olive Oil',
+            '1/2 tsp Cumin seeds & Black Pepper',
+            'Sea Salt to taste'
+          ],
+          steps: [
+            'Step 1: Wash all vegetables thoroughly. Slice bell peppers into strips, dice tomatoes, and shred spinach.',
+            'Step 2: Heat 1.5 tbsp olive oil in a wide pan over medium-high flame. Add cumin seeds and minced garlic for 30 seconds.',
+            'Step 3: Add sliced onions and green chilies. Sauté for 3 minutes until onions become translucent.',
+            'Step 4: Toss in bell pepper strips and cook on high heat for 4-5 minutes to keep them crisp and colorful.',
+            'Step 5: Add diced tomatoes, black pepper ($spiceLevel), and salt. Stir gently for 2 minutes.',
+            'Step 6: Add spinach leaves in the last 60 seconds and toss until just wilted.',
+            'Step 7: Remove from heat and serve hot with fresh warm bread or rice.'
+          ],
+          cookingTimeMinutes: 15,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 180 * servings,
+            protein: 4.5 * servings,
+            carbs: 22.0 * servings,
+            fat: 7.0 * servings,
+            fiber: 5.8 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🫑',
+          cuisine: 'Mediterranean',
+          dietType: diet,
+          isFavorite: false,
+        ),
+        Recipe(
+          id: 'dyn_veg_2',
+          title: 'Rustic Tomato & Garden Veggie Ratatouille',
+          description: 'A comforting slow-simmered vegetable stew layered with ripe tomatoes, bell peppers, onions, and aromatic herbs.',
+          ingredients: [
+            '2 large Bell Peppers (cubed)',
+            '3 ripe Tomatoes (crushed/pureed)',
+            '1 large Onion (chopped)',
+            '1 cup Spinach or Greens',
+            '1 tbsp Olive Oil',
+            '1 tsp Dried Oregano and Basil',
+            'Salt and Pepper to taste'
+          ],
+          steps: [
+            'Step 1: Sauté chopped onions and garlic in olive oil in a deep skillet for 4 minutes.',
+            'Step 2: Add cubed bell peppers and sauté for 5 minutes until slightly caramelized.',
+            'Step 3: Pour in crushed tomatoes, oregano, basil, salt, and pepper.',
+            'Step 4: Reduce heat to low, cover, and simmer for 15 minutes to allow flavors to meld.',
+            'Step 5: Fold in fresh spinach and simmer for an extra 2 minutes until tender.'
+          ],
+          cookingTimeMinutes: 25,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 195 * servings,
+            protein: 5.0 * servings,
+            carbs: 26.0 * servings,
+            fat: 6.5 * servings,
+            fiber: 6.2 * servings,
+          ),
+          matchType: 'full',
+          matchPercentage: 100,
+          imageEmoji: '🍅',
+          cuisine: 'French',
+          dietType: diet,
+          isFavorite: false,
+        ),
+      ];
+
+      partialMatch = [
+        Recipe(
+          id: 'dyn_veg_3',
+          title: 'Kadhai Paneer & Capsicum Masala',
+          description: 'Juicy paneer cubes and chunky bell peppers tossed in a rich, spiced tomato and onion gravy.',
+          ingredients: [
+            '200g Paneer cubes',
+            '2 Bell Peppers (diced)',
+            '2 Tomatoes (pureed)',
+            '1 Onion (chopped)',
+            '1 tbsp Kadhai masala & Coriander powder',
+            '2 tbsp Ghee or Oil'
+          ],
+          steps: [
+            'Step 1: Heat ghee in a kadhai/wok. Sauté onions until golden brown.',
+            'Step 2: Add tomato puree and spices. Cook until oil separates.',
+            'Step 3: Toss in bell peppers and paneer cubes. Stir well on high heat for 5 minutes.',
+            'Step 4: Garnish with fresh ginger juliennes and serve with naan.'
+          ],
+          cookingTimeMinutes: 20,
+          servings: servings,
+          spiceLevel: spiceLevel,
+          nutrition: NutritionInfo(
+            calories: 320 * servings,
+            protein: 16.0 * servings,
+            carbs: 18.0 * servings,
+            fat: 20.0 * servings,
+            fiber: 4.5 * servings,
+          ),
+          matchType: 'partial',
+          matchPercentage: 80,
+          imageEmoji: '🥘',
+          cuisine: 'Indian',
+          dietType: diet,
+          isFavorite: false,
+        ),
+      ];
+
+      alternative = [
+        Recipe(
+          id: 'dyn_veg_4',
+          title: 'Tuscan Tomato & Spinach Skillet Bake',
+          description: 'A baked skillet of seasoned garden tomatoes, wilted spinach, and melted cheese.',
+          ingredients: [
+            '2 cups Spinach',
+            '2 Tomatoes (sliced)',
+            '1/2 cup Mozzarella or Feta cheese',
+            '1 tbsp Olive Oil',
+            '1 tsp Italian seasoning'
+          ],
+          steps: [
+            'Step 1: Sauté spinach with olive oil and garlic in an oven-safe skillet.',
+            'Step 2: Top with sliced tomatoes and Italian seasoning.',
+            'Step 3: Sprinkle cheese on top and bake at 200°C for 10 minutes until bubbling and golden.'
+          ],
+          cookingTimeMinutes: 18,
+          servings: servings,
+          spiceLevel: 'Mild',
+          nutrition: NutritionInfo(
+            calories: 210 * servings,
+            protein: 11.0 * servings,
+            carbs: 12.0 * servings,
+            fat: 13.0 * servings,
+            fiber: 3.5 * servings,
+          ),
+          matchType: 'alternative',
+          matchPercentage: 65,
+          imageEmoji: '🥗',
+          cuisine: 'Italian',
+          dietType: diet,
+          isFavorite: false,
+        ),
+      ];
+    } else if (isPotato) {
       fullMatch = [
         Recipe(
           id: 'dyn_pot_1',

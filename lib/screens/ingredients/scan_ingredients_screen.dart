@@ -191,13 +191,21 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
         else
           Stack(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.memory(
-                  _imageBytes!,
-                  width: double.infinity,
-                  height: 220,
-                  fit: BoxFit.cover,
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(minHeight: 220, maxHeight: 380),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTheme.divider, width: 1.5),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Image.memory(
+                    _imageBytes!,
+                    width: double.infinity,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
               Positioned(
@@ -212,11 +220,11 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
                   child: Container(
                     width: 36, height: 36,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.black.withValues(alpha: 0.65),
+                      shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.close_rounded,
-                        color: Colors.white, size: 18),
+                        color: Colors.white, size: 20),
                   ),
                 ),
               ),
