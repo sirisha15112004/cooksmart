@@ -32,13 +32,13 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   final _manualAddController = TextEditingController();
   final _recipeService = RecipeService();
 
-  final List<Map<String, String>> _dietOptions = [
-    {'label': 'None', 'emoji': '🍽️'},
-    {'label': 'Vegetarian', 'emoji': '🥦'},
-    {'label': 'Vegan', 'emoji': '🌱'},
-    {'label': 'High-Protein', 'emoji': '💪'},
-    {'label': 'Diabetic-Friendly', 'emoji': '🩺'},
-    {'label': 'Weight-Loss', 'emoji': '⚖️'},
+  final List<String> _dietOptions = [
+    'None',
+    'Vegetarian',
+    'Vegan',
+    'High-Protein',
+    'Diabetic-Friendly',
+    'Weight-Loss',
   ];
 
   @override
@@ -80,7 +80,6 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
           _isDetecting = false;
         });
 
-        // Save scan to backend if user is logged in
         final prefs = await SharedPreferences.getInstance();
         final uid = prefs.getInt('userId') ?? 0;
         if (uid > 0 && results.isNotEmpty) {
@@ -167,13 +166,13 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
       SnackBar(
         content: Text(
           addedCount > 0
-              ? 'Added $addedCount ingredient${addedCount != 1 ? 's' : ''} to Home Pantry! 🥫'
-              : 'Selected ingredients are already in your Pantry!',
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, color: Colors.white),
+              ? 'Added $addedCount item${addedCount != 1 ? 's' : ''} to Home Pantry'
+              : 'Selected items are already in your Pantry',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
         ),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.textPrimary,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
         action: SnackBarAction(
           label: 'View Pantry',
           textColor: Colors.white,
@@ -217,7 +216,7 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FBF9),
+      backgroundColor: AppTheme.surface,
       appBar: AppBar(
         title: const Text('Scan Ingredients'),
       ),
@@ -226,21 +225,15 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // If no image is selected, show prominent "Upload an Image" button
             if (_imageBytes == null) ...[
               _buildUploadPlaceholder(),
             ] else ...[
-              // Uploaded Image Preview & Control buttons
               _buildImagePreviewCard(),
             ],
-
-            // Detecting progress state
             if (_isDetecting) ...[
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               _buildDetectingCard(),
             ],
-
-            // Detection Results
             if (_hasAnalyzed) ...[
               const SizedBox(height: 20),
               _buildDetectionResults(),
@@ -254,48 +247,45 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
   Widget _buildUploadPlaceholder() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
         border: Border.all(color: AppTheme.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
         children: [
           Container(
-            width: 72,
-            height: 72,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
-              shape: BoxShape.circle,
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.divider),
             ),
             child: const Center(
-              child: Icon(Icons.cloud_upload_outlined, color: AppTheme.primary, size: 36),
+              child: Icon(Icons.cloud_upload_outlined, color: AppTheme.primary, size: 28),
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            'Upload Ingredients Image',
-            style: GoogleFonts.dmSans(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+            'Upload Ingredients Photo',
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
               color: AppTheme.textPrimary,
+              letterSpacing: -0.2,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
-            'Select a JPG, JPEG, or PNG photo of your ingredients from your computer.',
+            'Select a JPG, JPEG, or PNG photo of your vegetables or food items from your device.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(
+            style: GoogleFonts.inter(
               fontSize: 13,
               color: AppTheme.textSecondary,
+              height: 1.4,
             ),
           ),
           const SizedBox(height: 20),
@@ -303,17 +293,13 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: _uploadImage,
-              icon: const Icon(Icons.upload_file_rounded, size: 20),
-              label: const Text(
-                'Upload an Image',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
+              icon: const Icon(Icons.photo_library_outlined, size: 18),
+              label: const Text('Upload an Image'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
               ),
             ),
           ),
@@ -326,39 +312,37 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
         border: Border.all(color: AppTheme.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Uploaded Image Preview',
-                  style: GoogleFonts.dmSans(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                  'Uploaded Photo',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                     color: AppTheme.textPrimary,
                   ),
                 ),
                 TextButton.icon(
                   onPressed: _removeImage,
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
-                  label: const Text(
-                    'Remove Image',
-                    style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600, fontSize: 13),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppTheme.errorColor),
+                  label: Text(
+                    'Remove',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.errorColor,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
@@ -366,8 +350,8 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
           ),
           Container(
             width: double.infinity,
-            constraints: const BoxConstraints(minHeight: 200, maxHeight: 380),
-            color: const Color(0xFF1E293B),
+            constraints: const BoxConstraints(minHeight: 180, maxHeight: 340),
+            color: const Color(0xFF18181B),
             child: Image.memory(
               _imageBytes!,
               fit: BoxFit.contain,
@@ -376,26 +360,18 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _uploadImage,
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: const Text(
-                      'Upload Another Image',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      foregroundColor: AppTheme.primary,
-                      side: const BorderSide(color: AppTheme.primary, width: 1.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
+            padding: const EdgeInsets.all(12),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _uploadImage,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Upload Another Photo'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -405,37 +381,27 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
 
   Widget _buildDetectingCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
         border: Border.all(color: AppTheme.divider),
       ),
       child: Column(
         children: [
           const LinearProgressIndicator(
-            backgroundColor: Color(0xFFE8F5E9),
+            backgroundColor: AppTheme.surface,
             valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+            minHeight: 3,
           ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Detecting ingredients...',
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
+          const SizedBox(height: 12),
+          Text(
+            'Analyzing visible ingredients...',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textSecondary,
+            ),
           ),
         ],
       ),
@@ -448,48 +414,45 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          color: AppTheme.cardBg,
+          borderRadius: AppTheme.radius,
           border: Border.all(color: AppTheme.divider),
+          boxShadow: AppTheme.cardShadow,
         ),
         child: Column(
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.divider),
               ),
               child: const Center(
-                child: Icon(Icons.search_off_rounded, color: Colors.orange, size: 28),
+                child: Icon(Icons.search_off_rounded, color: AppTheme.textSecondary, size: 24),
               ),
             ),
             const SizedBox(height: 12),
             Text(
               'No ingredients detected',
-              style: GoogleFonts.dmSans(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
-              'No ingredients detected. Please try another image.',
+              'Please ensure the photo is clear and try another image.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(fontSize: 13, color: AppTheme.textSecondary),
+              style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
+            OutlinedButton.icon(
               onPressed: _uploadImage,
-              icon: const Icon(Icons.upload_file_rounded, size: 18),
-              label: const Text('Upload Another Image'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+              icon: const Icon(Icons.photo_library_outlined, size: 16),
+              label: const Text('Try Another Photo'),
             ),
           ],
         ),
@@ -499,93 +462,92 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Detected Summary Header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFE8F5E9),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded, color: AppTheme.primary, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${_detectedIngredients.length} Ingredient${_detectedIngredients.length != 1 ? 's' : ''} Detected',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primary,
-                  ),
-                ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Detected Ingredients (${_detectedIngredients.length})',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SizedBox(height: 14),
-        Text('Detected Ingredients', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
 
-        // Interactive Checklist of Detected Ingredients
+        // Clean white list card with 1px dividers
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            color: AppTheme.cardBg,
+            borderRadius: AppTheme.radius,
             border: Border.all(color: AppTheme.divider),
+            boxShadow: AppTheme.cardShadow,
           ),
           child: Column(
-            children: _detectedIngredients.map((ing) {
+            children: _detectedIngredients.asMap().entries.map((entry) {
+              final i = entry.key;
+              final ing = entry.value;
               final isChecked = _selectedIngredients.contains(ing);
-              return ListTile(
-                dense: true,
-                leading: Checkbox(
-                  value: isChecked,
-                  activeColor: AppTheme.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                  onChanged: (_) => _toggleIngredient(ing),
-                ),
-                title: Text(
-                  ing,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: isChecked ? AppTheme.textPrimary : AppTheme.textSecondary,
+              final isLast = i == _detectedIngredients.length - 1;
+
+              return Column(
+                children: [
+                  ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    leading: Checkbox(
+                      value: isChecked,
+                      activeColor: AppTheme.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      onChanged: (_) => _toggleIngredient(ing),
+                    ),
+                    title: Text(
+                      ing,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: isChecked ? AppTheme.textPrimary : AppTheme.textSecondary,
+                      ),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 16, color: AppTheme.textTertiary),
+                      tooltip: 'Remove',
+                      onPressed: () => _removeIngredient(ing),
+                    ),
+                    onTap: () => _toggleIngredient(ing),
                   ),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 18, color: Colors.grey),
-                  tooltip: 'Remove',
-                  onPressed: () => _removeIngredient(ing),
-                ),
-                onTap: () => _toggleIngredient(ing),
+                  if (!isLast) const Divider(height: 1, color: AppTheme.divider),
+                ],
               );
             }).toList(),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
 
-        // Manual Add Field
+        // Clean Manual Add Input
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            color: AppTheme.cardBg,
+            borderRadius: AppTheme.radius,
             border: Border.all(color: AppTheme.divider),
           ),
           child: Row(
             children: [
               const Padding(
-                padding: EdgeInsets.only(left: 12, right: 8),
-                child: Icon(Icons.add_circle_outline_rounded, color: AppTheme.primary, size: 20),
+                padding: EdgeInsets.only(left: 14, right: 8),
+                child: Icon(Icons.add_rounded, color: AppTheme.textSecondary, size: 18),
               ),
               Expanded(
                 child: TextField(
                   controller: _manualAddController,
-                  style: GoogleFonts.dmSans(fontSize: 13),
+                  style: GoogleFonts.inter(fontSize: 13),
                   decoration: const InputDecoration(
                     hintText: 'Add another ingredient...',
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(vertical: 12),
                   ),
                   onSubmitted: (_) => _manualAdd(),
@@ -593,32 +555,35 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
               ),
               TextButton(
                 onPressed: _manualAdd,
-                child: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Add',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
 
-        // Recipe Preferences & Options
-        Text('Recipe Preferences', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
+        Text('Recipe Preferences', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        const SizedBox(height: 10),
         _buildPreferencesCard(),
         const SizedBox(height: 24),
 
-        // Action Buttons: [ Add to Pantry ] and [ Find Recipes ]
         Row(
           children: [
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: _addToPantry,
-                icon: const Icon(Icons.kitchen_rounded, size: 20),
-                label: const Text('Add to Pantry', style: TextStyle(fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                label: const Text('Add to Pantry'),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  foregroundColor: AppTheme.primary,
-                  side: const BorderSide(color: AppTheme.primary, width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
                 ),
               ),
             ),
@@ -626,30 +591,30 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: _findRecipes,
-                icon: const Icon(Icons.restaurant_menu_rounded, size: 20),
-                label: const Text('Find Recipes', style: TextStyle(fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.restaurant_menu_rounded, size: 18),
+                label: const Text('Find Recipes'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
                 ),
               ),
             ),
           ],
         ),
       ],
-    ).animate().fadeIn(duration: 300.ms);
+    ).animate().fadeIn(duration: 200.ms);
   }
 
   Widget _buildPreferencesCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
         border: Border.all(color: AppTheme.divider),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,16 +622,19 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Servings', style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, fontSize: 13)),
+              Text(
+                'Servings',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13, color: AppTheme.textPrimary),
+              ),
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, color: AppTheme.primary, size: 22),
+                    icon: const Icon(Icons.remove_circle_outline_rounded, color: AppTheme.textSecondary, size: 20),
                     onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
                   ),
-                  Text('$_servings', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text('$_servings', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.textPrimary)),
                   IconButton(
-                    icon: const Icon(Icons.add_circle_outline, color: AppTheme.primary, size: 22),
+                    icon: const Icon(Icons.add_circle_outline_rounded, color: AppTheme.textSecondary, size: 20),
                     onPressed: _servings < 10 ? () => setState(() => _servings++) : null,
                   ),
                 ],
@@ -674,27 +642,35 @@ class _ScanIngredientsScreenState extends State<ScanIngredientsScreen> {
             ],
           ),
           const Divider(height: 1),
-          const SizedBox(height: 10),
-          Text('Diet Goal', style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 12),
+          Text(
+            'Dietary Goal',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13, color: AppTheme.textPrimary),
+          ),
           const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: _dietOptions.map((opt) {
-                final isSel = _dietType == opt['label'];
+                final isSel = _dietType == opt;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
-                    label: Text('${opt['emoji']} ${opt['label']}'),
+                    label: Text(opt),
                     selected: isSel,
-                    selectedColor: AppTheme.primary.withValues(alpha: 0.15),
+                    selectedColor: AppTheme.primary.withValues(alpha: 0.1),
                     checkmarkColor: AppTheme.primary,
-                    labelStyle: GoogleFonts.dmSans(
+                    side: BorderSide(
+                      color: isSel ? AppTheme.primary : AppTheme.divider,
+                      width: 1,
+                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    labelStyle: GoogleFonts.inter(
                       fontSize: 12,
-                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
                       color: isSel ? AppTheme.primary : AppTheme.textPrimary,
                     ),
-                    onSelected: (_) => setState(() => _dietType = opt['label']!),
+                    onSelected: (_) => setState(() => _dietType = opt),
                   ),
                 );
               }).toList(),

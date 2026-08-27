@@ -15,17 +15,36 @@ class MealPlannerScreen extends StatefulWidget {
 
 class _MealPlannerScreenState extends State<MealPlannerScreen> {
   DateTime _selectedDay = DateTime.now();
-  DateTime _focusedDay  = DateTime.now();
-  // date string -> meal_type -> {id, meal_name}
+  DateTime _focusedDay = DateTime.now();
   final Map<String, Map<String, Map<String, dynamic>>> _plans = {};
   bool _isLoading = false;
   int _userId = 0;
 
   final List<Map<String, dynamic>> _mealTypes = [
-    {'key': 'breakfast', 'label': 'Breakfast', 'emoji': '🌅', 'time': '7:00 – 9:00 AM'},
-    {'key': 'lunch',     'label': 'Lunch',     'emoji': '☀️', 'time': '12:00 – 2:00 PM'},
-    {'key': 'dinner',    'label': 'Dinner',    'emoji': '🌙', 'time': '7:00 – 9:00 PM'},
-    {'key': 'snacks',    'label': 'Snacks',    'emoji': '🍎', 'time': 'Anytime'},
+    {
+      'key': 'breakfast',
+      'label': 'Breakfast',
+      'icon': Icons.wb_sunny_outlined,
+      'time': '7:00 – 9:00 AM'
+    },
+    {
+      'key': 'lunch',
+      'label': 'Lunch',
+      'icon': Icons.light_mode_outlined,
+      'time': '12:00 – 2:00 PM'
+    },
+    {
+      'key': 'dinner',
+      'label': 'Dinner',
+      'icon': Icons.nightlight_outlined,
+      'time': '7:00 – 9:00 PM'
+    },
+    {
+      'key': 'snacks',
+      'label': 'Snacks',
+      'icon': Icons.local_cafe_outlined,
+      'time': 'Anytime'
+    },
   ];
 
   @override
@@ -58,10 +77,10 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   Future<void> _saveMeal(String mealType, String mealName) async {
     try {
       await ApiService.saveMealPlan(
-        userId:    _userId,
-        planDate:  _dateKey(_selectedDay),
-        mealType:  mealType,
-        mealName:  mealName,
+        userId: _userId,
+        planDate: _dateKey(_selectedDay),
+        mealType: mealType,
+        mealName: mealName,
       );
       await _loadDay(_selectedDay);
     } catch (e) {
@@ -89,21 +108,26 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Plan $label',
-            style: Theme.of(context).textTheme.titleLarge),
+        shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
+        title: Text(
+          'Plan $label',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-              hintText: 'Enter meal name or description...'),
+          style: GoogleFonts.inter(fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'Enter meal name or notes...',
+            hintStyle: GoogleFonts.inter(color: AppTheme.textTertiary, fontSize: 13),
+          ),
           autofocus: true,
           textCapitalization: TextCapitalization.sentences,
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('Cancel',
-                  style: GoogleFonts.dmSans(color: AppTheme.textSecondary))),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () {
               if (controller.text.trim().isNotEmpty) {
@@ -121,6 +145,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.surface,
       appBar: AppBar(
         title: const Text('Meal Planner'),
         automaticallyImplyLeading: false,
@@ -138,12 +163,13 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
 
   Widget _buildCalendar() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
         border: Border.all(color: AppTheme.divider),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: TableCalendar(
         firstDay: DateTime.utc(2024, 1, 1),
@@ -153,31 +179,43 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
         onDaySelected: (selected, focused) {
           setState(() {
             _selectedDay = selected;
-            _focusedDay  = focused;
+            _focusedDay = focused;
           });
           _loadDay(selected);
         },
         calendarStyle: CalendarStyle(
           selectedDecoration: const BoxDecoration(
-              color: AppTheme.primary, shape: BoxShape.circle),
+            color: AppTheme.primary,
+            shape: BoxShape.circle,
+          ),
           todayDecoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.3),
-              shape: BoxShape.circle),
+            color: AppTheme.primary.withValues(alpha: 0.2),
+            shape: BoxShape.circle,
+          ),
+          todayTextStyle: GoogleFonts.inter(
+            color: AppTheme.primary,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+          defaultTextStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textPrimary),
+          weekendTextStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
+          selectedTextStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
           markersMaxCount: 1,
           markerDecoration: const BoxDecoration(
-              color: AppTheme.accent, shape: BoxShape.circle),
+            color: AppTheme.primary,
+            shape: BoxShape.circle,
+          ),
         ),
         headerStyle: HeaderStyle(
           formatButtonVisible: false,
           titleCentered: true,
-          titleTextStyle: GoogleFonts.playfairDisplay(
-            fontSize: 18, fontWeight: FontWeight.w700,
+          titleTextStyle: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
             color: AppTheme.textPrimary,
           ),
-          leftChevronIcon: const Icon(Icons.chevron_left_rounded,
-              color: AppTheme.primary),
-          rightChevronIcon: const Icon(Icons.chevron_right_rounded,
-              color: AppTheme.primary),
+          leftChevronIcon: const Icon(Icons.chevron_left_rounded, color: AppTheme.textSecondary, size: 20),
+          rightChevronIcon: const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary, size: 20),
         ),
         eventLoader: (day) {
           final key = _dateKey(day);
@@ -188,47 +226,54 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   }
 
   Widget _buildDayPlan() {
-    final months = ['Jan','Feb','Mar','Apr','May','Jun',
-                    'Jul','Aug','Sep','Oct','Nov','Dec'];
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
     final d = _selectedDay;
     final dateStr = '${d.day} ${months[d.month - 1]} ${d.year}';
     final isToday = isSameDay(d, DateTime.now());
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text('$dateStr${isToday ? ' · Today' : ''}',
-                  style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                '$dateStr${isToday ? ' • Today' : ''}',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
               const Spacer(),
               if (_isLoading)
                 const SizedBox(
-                    width: 18, height: 18,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: AppTheme.primary)),
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           ..._mealTypes.asMap().entries.map((entry) {
-            final i    = entry.key;
+            final i = entry.key;
             final meal = entry.value;
-            final key  = meal['key'] as String;
+            final key = meal['key'] as String;
             final planEntry = _plans[_dateKey(_selectedDay)]?[key];
             final plannedMeal = planEntry?['meal_name'] as String?;
+
             return _MealSlot(
-              emoji:       meal['emoji'] as String,
-              label:       meal['label'] as String,
-              time:        meal['time']  as String,
+              icon: meal['icon'] as IconData,
+              label: meal['label'] as String,
+              time: meal['time'] as String,
               plannedMeal: plannedMeal,
-              onAdd:    () => _showAddMealDialog(key, meal['label'] as String),
+              onAdd: () => _showAddMealDialog(key, meal['label'] as String),
               onRemove: () => _removeMeal(key),
-            )
-                .animate()
-                .fadeIn(delay: (i * 80).ms)
-                .slideX(begin: 0.1);
+            ).animate().fadeIn(delay: (i * 30).ms);
           }),
         ],
       ),
@@ -237,12 +282,13 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
 }
 
 class _MealSlot extends StatelessWidget {
-  final String emoji, label, time;
+  final IconData icon;
+  final String label, time;
   final String? plannedMeal;
   final VoidCallback onAdd, onRemove;
 
   const _MealSlot({
-    required this.emoji,
+    required this.icon,
     required this.label,
     required this.time,
     this.plannedMeal,
@@ -253,55 +299,56 @@ class _MealSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: plannedMeal != null
-              ? AppTheme.primary.withValues(alpha: 0.3)
-              : AppTheme.divider,
-          width: plannedMeal != null ? 1.5 : 1,
-        ),
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
+        border: Border.all(color: AppTheme.divider),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Row(
         children: [
           Container(
-            width: 48, height: 48,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              color: plannedMeal != null
-                  ? AppTheme.primary.withValues(alpha: 0.1)
-                  : AppTheme.surface,
-              borderRadius: BorderRadius.circular(12),
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.divider),
             ),
-            child: Center(
-                child: Text(emoji, style: const TextStyle(fontSize: 24))),
+            child: Icon(icon, color: AppTheme.primary, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: GoogleFonts.dmSans(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: AppTheme.textPrimary)),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 if (plannedMeal != null)
-                  Text(plannedMeal!,
-                      style: GoogleFonts.dmSans(
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis)
+                  Text(
+                    plannedMeal!,
+                    style: GoogleFonts.inter(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
                 else
-                  Text(time,
-                      style: GoogleFonts.dmSans(
-                          color: AppTheme.textSecondary, fontSize: 12)),
+                  Text(
+                    time,
+                    style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 11),
+                  ),
               ],
             ),
           ),
@@ -309,53 +356,25 @@ class _MealSlot extends StatelessWidget {
           if (plannedMeal != null)
             Row(
               children: [
-                _IconBtn(icon: Icons.edit_rounded,
-                    color: AppTheme.primary.withValues(alpha: 0.1),
-                    iconColor: AppTheme.primary, onTap: onAdd),
-                const SizedBox(width: 8),
-                _IconBtn(icon: Icons.delete_rounded,
-                    color: AppTheme.errorColor.withValues(alpha: 0.1),
-                    iconColor: AppTheme.errorColor, onTap: onRemove),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 16, color: AppTheme.textSecondary),
+                  onPressed: onAdd,
+                  tooltip: 'Edit',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppTheme.textTertiary),
+                  onPressed: onRemove,
+                  tooltip: 'Remove',
+                ),
               ],
             )
           else
-            GestureDetector(
-              onTap: onAdd,
-              child: Container(
-                width: 38, height: 38,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: AppTheme.primary.withValues(alpha: 0.2)),
-                ),
-                child: const Icon(Icons.add_rounded,
-                    size: 22, color: AppTheme.primary),
-              ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppTheme.primary),
+              onPressed: onAdd,
+              tooltip: 'Add meal',
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _IconBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color, iconColor;
-  final VoidCallback onTap;
-  const _IconBtn(
-      {required this.icon, required this.color,
-       required this.iconColor, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 34, height: 34,
-        decoration: BoxDecoration(
-            color: color, borderRadius: BorderRadius.circular(9)),
-        child: Icon(icon, size: 16, color: iconColor),
       ),
     );
   }

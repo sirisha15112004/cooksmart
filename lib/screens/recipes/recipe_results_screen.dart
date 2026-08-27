@@ -45,7 +45,10 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen>
   }
 
   Future<void> _loadRecipes() async {
-    setState(() { _isLoading = true; _error = null; });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final results = await RecipeService().getRecipes(
         ingredients: widget.ingredients,
@@ -53,56 +56,50 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen>
         spiceLevel: widget.spiceLevel,
         dietType: widget.dietType,
       );
-      if (mounted) setState(() { _recipes = results; _isLoading = false; });
+      if (mounted) {
+        setState(() {
+          _recipes = results;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
-    }
-  }
-
-  // Diet display helpers
-  String get _dietEmoji {
-    switch (widget.dietType) {
-      case 'Vegetarian': return '🥦';
-      case 'Vegan': return '🌱';
-      case 'High-Protein': return '💪';
-      case 'Diabetic-Friendly': return '🩺';
-      case 'Weight-Loss': return '⚖️';
-      default: return '';
-    }
-  }
-
-  Color get _dietColor {
-    switch (widget.dietType) {
-      case 'Vegetarian': return const Color(0xFF2E7D32);
-      case 'Vegan': return const Color(0xFF1B5E20);
-      case 'High-Protein': return const Color(0xFFE65100);
-      case 'Diabetic-Friendly': return const Color(0xFF0277BD);
-      case 'Weight-Loss': return const Color(0xFF6A1B9A);
-      default: return AppTheme.primary;
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.surface,
       appBar: AppBar(
         title: const Text('Recipe Results'),
         bottom: _isLoading
             ? null
             : PreferredSize(
                 preferredSize: const Size.fromHeight(48),
-                child: TabBar(
-                  controller: _tabController,
-                  labelColor: AppTheme.primary,
-                  unselectedLabelColor: AppTheme.textSecondary,
-                  indicatorColor: AppTheme.primary,
-                  labelStyle: GoogleFonts.dmSans(
-                      fontWeight: FontWeight.w700, fontSize: 12),
-                  tabs: [
-                    Tab(text: '✅ Full (${_recipes['fullMatch']?.length ?? 0})'),
-                    Tab(text: '🔶 Partial (${_recipes['partialMatch']?.length ?? 0})'),
-                    Tab(text: '💡 Alt (${_recipes['alternative']?.length ?? 0})'),
-                  ],
+                child: Container(
+                  decoration: const BoxDecoration(
+                    border: Border(bottom: BorderSide(color: AppTheme.divider)),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: AppTheme.primary,
+                    unselectedLabelColor: AppTheme.textSecondary,
+                    indicatorColor: AppTheme.primary,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                    unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 13),
+                    tabs: [
+                      Tab(text: 'Full Match (${_recipes['fullMatch']?.length ?? 0})'),
+                      Tab(text: 'Partial (${_recipes['partialMatch']?.length ?? 0})'),
+                      Tab(text: 'Alternatives (${_recipes['alternative']?.length ?? 0})'),
+                    ],
+                  ),
                 ),
               ),
       ),
@@ -131,32 +128,29 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen>
   Widget _buildDietBanner() {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: _dietColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _dietColor.withValues(alpha: 0.3)),
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
+        border: Border.all(color: AppTheme.divider),
       ),
       child: Row(
         children: [
-          Text(_dietEmoji, style: const TextStyle(fontSize: 18)),
+          const Icon(Icons.eco_outlined, color: AppTheme.primary, size: 16),
           const SizedBox(width: 8),
           Text(
-            '${widget.dietType} recipes',
-            style: GoogleFonts.dmSans(
-              color: _dietColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
+            '${widget.dietType} Filter Applied',
+            style: GoogleFonts.inter(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
           ),
           const Spacer(),
           Text(
-            'Diet filtered',
-            style: GoogleFonts.dmSans(
-              color: _dietColor.withValues(alpha: 0.7),
-              fontSize: 12,
-            ),
+            '${widget.ingredients.length} ingredients',
+            style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12),
           ),
         ],
       ),
@@ -168,19 +162,16 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(
-              color: AppTheme.primary, strokeWidth: 3),
-          const SizedBox(height: 20),
-          Text('Finding the perfect recipes...',
-              style: GoogleFonts.dmSans(
-                  fontSize: 16, color: AppTheme.textSecondary)),
-          const SizedBox(height: 8),
+          const CircularProgressIndicator(color: AppTheme.primary, strokeWidth: 2.5),
+          const SizedBox(height: 18),
           Text(
-            widget.dietType != null
-                ? '$_dietEmoji ${widget.dietType} • ${widget.ingredients.length} ingredients'
-                : 'Using ${widget.ingredients.length} ingredients',
-            style: GoogleFonts.dmSans(
-                fontSize: 13, color: AppTheme.textSecondary),
+            'Finding balanced recipes...',
+            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: AppTheme.textPrimary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Matching with ${widget.ingredients.length} ingredients',
+            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -194,17 +185,16 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('😕', style: TextStyle(fontSize: 64)),
+            const Icon(Icons.error_outline_rounded, size: 48, color: AppTheme.errorColor),
             const SizedBox(height: 16),
-            Text('Failed to load recipes',
-                style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 8),
-            Text(_error ?? '',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            ElevatedButton(
-                onPressed: _loadRecipes, child: const Text('Try Again')),
+            Text(
+              'Failed to load recipes',
+              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 6),
+            Text(_error ?? '', style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary), textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: _loadRecipes, child: const Text('Try Again')),
           ],
         ),
       ),
@@ -214,90 +204,80 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen>
   Widget _buildRecipeList(List<Recipe> recipes) {
     if (recipes.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('🍽️', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 16),
-            Text('No recipes in this category',
-                style: Theme.of(context).textTheme.titleLarge),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppTheme.cardBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.divider),
+                ),
+                child: const Center(
+                  child: Icon(Icons.restaurant_menu_rounded, color: AppTheme.textSecondary, size: 22),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'No recipes in this category',
+                style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
       itemCount: recipes.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, i) => _RecipeCard(
         recipe: recipes[i],
-        dietColor: widget.dietType != null ? _dietColor : null,
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-              builder: (_) => RecipeDetailScreen(recipe: recipes[i])),
+          MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipes[i])),
         ),
-      ).animate().fadeIn(delay: (i * 100).ms).slideY(begin: 0.2),
+      ).animate().fadeIn(delay: (i * 40).ms),
     );
   }
 }
 
 class _RecipeCard extends StatelessWidget {
   final Recipe recipe;
-  final Color? dietColor;
   final VoidCallback onTap;
 
-  const _RecipeCard(
-      {required this.recipe, this.dietColor, required this.onTap});
-
-  Color get _matchColor {
-    switch (recipe.matchType) {
-      case 'full': return AppTheme.successColor;
-      case 'partial': return AppTheme.accent;
-      default: return Colors.blue;
-    }
-  }
-
-  String get _dietEmoji {
-    switch (recipe.dietType) {
-      case 'Vegetarian': return '🥦';
-      case 'Vegan': return '🌱';
-      case 'High-Protein': return '💪';
-      case 'Diabetic-Friendly': return '🩺';
-      case 'Weight-Loss': return '⚖️';
-      default: return '';
-    }
-  }
+  const _RecipeCard({required this.recipe, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          color: AppTheme.cardBg,
+          borderRadius: AppTheme.radius,
           border: Border.all(color: AppTheme.divider),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2))
-          ],
+          boxShadow: AppTheme.cardShadow,
         ),
         child: Row(
           children: [
             Container(
-              width: 72, height: 72,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.divider),
               ),
-              child: Center(
-                  child: Text(recipe.imageEmoji ?? '🍲',
-                      style: const TextStyle(fontSize: 36))),
+              child: const Center(
+                child: Icon(Icons.restaurant_rounded, color: AppTheme.primary, size: 22),
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -307,64 +287,61 @@ class _RecipeCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(recipe.title,
-                            style: GoogleFonts.dmSans(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                              color: AppTheme.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _matchColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(100),
+                        child: Text(
+                          recipe.title,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: AppTheme.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        child: Text('${recipe.matchPercentage}%',
-                            style: GoogleFonts.dmSans(
-                              color: _matchColor,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            )),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: AppTheme.divider),
+                        ),
+                        child: Text(
+                          '${recipe.matchPercentage}% match',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(recipe.description,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 3),
+                  Text(
+                    recipe.description,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      _InfoPill(
-                          icon: Icons.timer_outlined,
-                          text: '${recipe.cookingTimeMinutes}m'),
-                      const SizedBox(width: 8),
-                      _InfoPill(
-                          icon: Icons.people_outline_rounded,
-                          text: '${recipe.servings}'),
-                      const SizedBox(width: 8),
-                      _InfoPill(
-                          icon: Icons.local_fire_department_outlined,
-                          text: '${recipe.nutrition.calories} kcal'),
-                      if (_dietEmoji.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Text(_dietEmoji,
-                            style: const TextStyle(fontSize: 14)),
-                      ],
+                      _InfoPill(icon: Icons.schedule_rounded, text: '${recipe.cookingTimeMinutes}m'),
+                      const SizedBox(width: 12),
+                      _InfoPill(icon: Icons.people_outline_rounded, text: '${recipe.servings}'),
+                      const SizedBox(width: 12),
+                      _InfoPill(icon: Icons.whatshot_outlined, text: '${recipe.nutrition.calories} kcal'),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 6),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                size: 14, color: AppTheme.textSecondary),
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppTheme.textTertiary),
           ],
         ),
       ),
@@ -381,11 +358,12 @@ class _InfoPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 12, color: AppTheme.textSecondary),
-        const SizedBox(width: 3),
-        Text(text,
-            style: GoogleFonts.dmSans(
-                fontSize: 11, color: AppTheme.textSecondary)),
+        Icon(icon, size: 13, color: AppTheme.textSecondary),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.w400),
+        ),
       ],
     );
   }

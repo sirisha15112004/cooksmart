@@ -29,7 +29,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Reload every time this screen becomes active
     _loadFavorites();
   }
 
@@ -68,8 +67,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Recipe _mapToRecipe(Map<String, dynamic> r) {
     final n = (r['nutrition'] as Map<String, dynamic>?) ?? {};
 
-    // Backend returns ingredients/steps already parsed as List
-    // but guard against them being a JSON string just in case
     List<String> parseList(dynamic val) {
       if (val == null) return [];
       if (val is List) return val.map((e) => e.toString()).toList();
@@ -110,65 +107,88 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.surface,
       appBar: AppBar(
-        title: const Text('Favorites'),
+        title: const Text('Saved Recipes'),
         automaticallyImplyLeading: false,
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.primary))
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : _favorites.isEmpty
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('💔', style: TextStyle(fontSize: 64)),
-                      const SizedBox(height: 16),
-                      Text('No favorites yet',
-                          style: Theme.of(context).textTheme.headlineMedium),
-                      const SizedBox(height: 8),
-                      Text('Save recipes you love here',
-                          style: Theme.of(context).textTheme.bodyMedium),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppTheme.divider),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.bookmark_outline_rounded, color: AppTheme.textSecondary, size: 26),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No Saved Recipes',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Tap the bookmark icon on any recipe detail to save your favorite dishes here.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : RefreshIndicator(
                   onRefresh: _loadFavorites,
                   color: AppTheme.primary,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(20),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                     itemCount: _favorites.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (ctx, i) => GestureDetector(
                       onTap: () async {
                         await Navigator.push(
                           ctx,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                RecipeDetailScreen(recipe: _favorites[i]),
+                            builder: (_) => RecipeDetailScreen(recipe: _favorites[i]),
                           ),
                         );
                         _loadFavorites();
                       },
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
+                          color: AppTheme.cardBg,
+                          borderRadius: AppTheme.radius,
                           border: Border.all(color: AppTheme.divider),
+                          boxShadow: AppTheme.cardShadow,
                         ),
                         child: Row(
                           children: [
                             Container(
-                              width: 56, height: 56,
+                              width: 44,
+                              height: 44,
                               decoration: BoxDecoration(
-                                color: AppTheme.primary.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(14),
+                                color: AppTheme.surface,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppTheme.divider),
                               ),
-                              child: Center(
-                                child: Text(
-                                    _favorites[i].imageEmoji ?? '🍲',
-                                    style: const TextStyle(fontSize: 28)),
+                              child: const Center(
+                                child: Icon(Icons.restaurant_menu_rounded, color: AppTheme.primary, size: 20),
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -176,32 +196,31 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(_favorites[i].title,
-                                      style: GoogleFonts.dmSans(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 15),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis),
-                                  const SizedBox(height: 4),
                                   Text(
-                                      '${_favorites[i].cookingTimeMinutes} min • ${_favorites[i].cuisine}',
-                                      style: GoogleFonts.dmSans(
-                                          color: AppTheme.textSecondary,
-                                          fontSize: 13)),
-                                  const SizedBox(height: 4),
+                                    _favorites[i].title,
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
                                   Text(
-                                      '${_favorites[i].nutrition.calories} kcal • ${_favorites[i].servings} servings',
-                                      style: GoogleFonts.dmSans(
-                                          color: AppTheme.textSecondary,
-                                          fontSize: 12)),
+                                    '${_favorites[i].cookingTimeMinutes} min • ${_favorites[i].cuisine} • ${_favorites[i].nutrition.calories} kcal',
+                                    style: GoogleFonts.inter(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
-                            const Icon(Icons.favorite_rounded,
-                                color: Colors.red, size: 20),
+                            const Icon(Icons.bookmark_rounded, color: AppTheme.primary, size: 20),
                           ],
                         ),
-                      ).animate().fadeIn(delay: (i * 80).ms),
+                      ).animate().fadeIn(delay: (i * 30).ms),
                     ),
                   ),
                 ),

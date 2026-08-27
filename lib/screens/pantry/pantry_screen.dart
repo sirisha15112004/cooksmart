@@ -17,19 +17,19 @@ class _PantryScreenState extends State<PantryScreen> {
   final TextEditingController _addController = TextEditingController();
   bool _isLoading = true;
 
-  static const List<Map<String, String>> _popularStaples = [
-    {'name': 'Rice', 'emoji': '🍚'},
-    {'name': 'Tomato', 'emoji': '🍅'},
-    {'name': 'Onion', 'emoji': '🧅'},
-    {'name': 'Potato', 'emoji': '🥔'},
-    {'name': 'Eggs', 'emoji': '🥚'},
-    {'name': 'Milk', 'emoji': '🥛'},
-    {'name': 'Chicken', 'emoji': '🍗'},
-    {'name': 'Garlic', 'emoji': '🧄'},
-    {'name': 'Butter', 'emoji': '🧈'},
-    {'name': 'Cheese', 'emoji': '🧀'},
-    {'name': 'Pasta', 'emoji': '🍝'},
-    {'name': 'Spinach', 'emoji': '🥬'},
+  static const List<String> _popularStaples = [
+    'Rice',
+    'Tomato',
+    'Onion',
+    'Potato',
+    'Eggs',
+    'Milk',
+    'Chicken',
+    'Garlic',
+    'Butter',
+    'Cheese',
+    'Pasta',
+    'Spinach',
   ];
 
   @override
@@ -52,7 +52,6 @@ class _PantryScreenState extends State<PantryScreen> {
       if (saved != null && saved.isNotEmpty) {
         _pantryItems.addAll(saved);
       } else {
-        // Helpful initial pantry items
         _pantryItems.addAll(['Rice', 'Tomato', 'Onion', 'Potato', 'Eggs', 'Milk', 'Chicken']);
         _savePantry();
       }
@@ -69,7 +68,6 @@ class _PantryScreenState extends State<PantryScreen> {
     final name = rawName.trim();
     if (name.isEmpty) return;
 
-    // Capitalize first letter of each word nicely
     final formatted = name.split(' ').map((w) {
       if (w.isEmpty) return '';
       return w[0].toUpperCase() + w.substring(1).toLowerCase();
@@ -84,7 +82,7 @@ class _PantryScreenState extends State<PantryScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$formatted is already in your pantry!'),
+          content: Text('$formatted is already in your pantry'),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -102,6 +100,8 @@ class _PantryScreenState extends State<PantryScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Removed $removed from pantry'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
         action: SnackBarAction(
           label: 'Undo',
           textColor: Colors.white,
@@ -137,49 +137,26 @@ class _PantryScreenState extends State<PantryScreen> {
     );
   }
 
-  String _getFoodEmoji(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('rice')) return '🍚';
-    if (lower.contains('tomato')) return '🍅';
-    if (lower.contains('onion')) return '🧅';
-    if (lower.contains('potato')) return '🥔';
-    if (lower.contains('egg')) return '🥚';
-    if (lower.contains('milk')) return '🥛';
-    if (lower.contains('chicken')) return '🍗';
-    if (lower.contains('garlic')) return '🧄';
-    if (lower.contains('butter')) return '🧈';
-    if (lower.contains('cheese')) return '🧀';
-    if (lower.contains('pasta') || lower.contains('noodle')) return '🍝';
-    if (lower.contains('spinach') || lower.contains('leaf')) return '🥬';
-    if (lower.contains('carrot')) return '🥕';
-    if (lower.contains('pepper') || lower.contains('capsicum')) return '🫑';
-    if (lower.contains('chili')) return '🌶️';
-    if (lower.contains('fish') || lower.contains('seafood')) return '🐟';
-    if (lower.contains('bread')) return '🍞';
-    if (lower.contains('oil')) return '🫒';
-    if (lower.contains('salt') || lower.contains('sugar')) return '🧂';
-    return '🥫';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FBF9),
+      backgroundColor: AppTheme.surface,
       appBar: AppBar(
         title: const Text('My Pantry'),
         actions: [
           if (_pantryItems.isNotEmpty)
-            TextButton.icon(
-              onPressed: _findRecipesWithPantry,
-              icon: const Icon(Icons.restaurant_menu_rounded, size: 18, color: Colors.white),
-              label: const Text('Cook Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              style: TextButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: ElevatedButton.icon(
+                onPressed: _findRecipesWithPantry,
+                icon: const Icon(Icons.restaurant_menu_rounded, size: 16),
+                label: const Text('Find Recipes'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
+                ),
               ),
             ),
-          const SizedBox(width: 12),
         ],
       ),
       body: _isLoading
@@ -200,34 +177,26 @@ class _PantryScreenState extends State<PantryScreen> {
   Widget _buildHeaderCard() {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2E7D32), Color(0xFF43A047)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primary.withValues(alpha: 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
+        border: Border.all(color: AppTheme.divider),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(14),
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.divider),
             ),
             child: const Center(
-              child: Text('🥫', style: TextStyle(fontSize: 26)),
+              child: Icon(Icons.inventory_2_outlined, color: AppTheme.primary, size: 20),
             ),
           ),
           const SizedBox(width: 14),
@@ -236,19 +205,19 @@ class _PantryScreenState extends State<PantryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Ingredients at Home',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                  '${_pantryItems.length} Ingredients in Pantry',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${_pantryItems.length} ingredient${_pantryItems.length != 1 ? 's' : ''} currently available in pantry',
-                  style: GoogleFonts.dmSans(
+                  'Items you currently have in stock at home',
+                  style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.85),
+                    color: AppTheme.textSecondary,
                   ),
                 ),
               ],
@@ -256,56 +225,52 @@ class _PantryScreenState extends State<PantryScreen> {
           ),
         ],
       ),
-    ).animate().fadeIn().slideY(begin: -0.1);
+    );
   }
 
   Widget _buildAddInput() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          color: AppTheme.cardBg,
+          borderRadius: AppTheme.radius,
           border: Border.all(color: AppTheme.divider),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: AppTheme.cardShadow,
         ),
         child: Row(
           children: [
             const Padding(
-              padding: EdgeInsets.only(left: 16, right: 8),
-              child: Icon(Icons.add_circle_outline_rounded, color: AppTheme.primary, size: 22),
+              padding: EdgeInsets.only(left: 14, right: 8),
+              child: Icon(Icons.add_rounded, color: AppTheme.textSecondary, size: 18),
             ),
             Expanded(
               child: TextField(
                 controller: _addController,
-                style: GoogleFonts.dmSans(fontSize: 14, color: AppTheme.textPrimary),
+                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textPrimary),
                 decoration: InputDecoration(
-                  hintText: 'Add an ingredient (e.g. Rice, Tomato, Eggs)...',
-                  hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppTheme.textSecondary),
+                  hintText: 'Add an ingredient you have at home...',
+                  hintStyle: GoogleFonts.inter(color: AppTheme.textTertiary, fontSize: 13),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onSubmitted: _addIngredient,
+                onSubmitted: (val) => _addIngredient(val),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: ElevatedButton(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton(
                 onPressed: () => _addIngredient(_addController.text),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
+                child: Text(
+                  'Add',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
-                child: Text('Add', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 13)),
               ),
             ),
           ],
@@ -315,132 +280,139 @@ class _PantryScreenState extends State<PantryScreen> {
   }
 
   Widget _buildPopularSuggestions() {
-    final unaddedStaples = _popularStaples
-        .where((s) => !_pantryItems.any((item) => item.toLowerCase() == s['name']!.toLowerCase()))
-        .toList();
-
-    if (unaddedStaples.isEmpty) return const SizedBox(height: 8);
-
-    return Container(
-      height: 42,
-      margin: const EdgeInsets.only(top: 10, bottom: 6),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: unaddedStaples.length,
-        itemBuilder: (context, index) {
-          final staple = unaddedStaples[index];
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ActionChip(
-              avatar: Text(staple['emoji']!, style: const TextStyle(fontSize: 14)),
-              label: Text(
-                '+ ${staple['name']}',
-                style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
-              ),
-              backgroundColor: AppTheme.primary.withValues(alpha: 0.08),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(color: AppTheme.primary.withValues(alpha: 0.2)),
-              ),
-              onPressed: () => _addIngredient(staple['name']!),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Quick Add Staples',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textSecondary,
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _popularStaples.map((item) {
+                final alreadyInPantry =
+                    _pantryItems.any((p) => p.toLowerCase() == item.toLowerCase());
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ActionChip(
+                    label: Text(item),
+                    backgroundColor: alreadyInPantry ? AppTheme.surface : AppTheme.cardBg,
+                    side: BorderSide(
+                      color: alreadyInPantry ? AppTheme.divider : AppTheme.divider,
+                      width: 1,
+                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    labelStyle: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: alreadyInPantry ? FontWeight.w400 : FontWeight.w500,
+                      color: alreadyInPantry ? AppTheme.textTertiary : AppTheme.textPrimary,
+                    ),
+                    onPressed: alreadyInPantry ? null : () => _addIngredient(item),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildPantryList() {
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 80),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       itemCount: _pantryItems.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final ingredient = _pantryItems[index];
-        final emoji = _getFoodEmoji(ingredient);
-
+        final item = _pantryItems[index];
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            color: AppTheme.cardBg,
+            borderRadius: AppTheme.radius,
             border: Border.all(color: AppTheme.divider),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            boxShadow: AppTheme.cardShadow,
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
             leading: Container(
-              width: 44,
-              height: 44,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppTheme.divider),
               ),
-              child: Center(
-                child: Text(emoji, style: const TextStyle(fontSize: 22)),
+              child: const Center(
+                child: Icon(Icons.check_rounded, color: AppTheme.primary, size: 16),
               ),
             ),
             title: Text(
-              ingredient,
-              style: GoogleFonts.dmSans(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+              item,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
                 color: AppTheme.textPrimary,
               ),
             ),
             subtitle: Text(
               'In stock at home',
-              style: GoogleFonts.dmSans(fontSize: 12, color: AppTheme.successColor),
+              style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textSecondary),
             ),
             trailing: IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
-              tooltip: 'Remove from Pantry',
+              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.textTertiary),
+              tooltip: 'Remove',
               onPressed: () => _deleteIngredient(index),
             ),
           ),
-        ).animate().fadeIn(duration: 200.ms);
+        ).animate().fadeIn(delay: (index * 20).ms);
       },
     );
   }
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppTheme.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.divider),
+              ),
+              child: const Center(
+                child: Icon(Icons.inventory_2_outlined, color: AppTheme.textSecondary, size: 26),
+              ),
             ),
-            child: const Center(
-              child: Text('🥫', style: TextStyle(fontSize: 38)),
+            const SizedBox(height: 16),
+            Text(
+              'Your Pantry is Empty',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Your pantry is empty',
-            style: GoogleFonts.dmSans(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
+            const SizedBox(height: 6),
+            Text(
+              'Add ingredients you have at home using the input above or quick-add chips.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Add the ingredients you currently have at home\nto get customized recipe recommendations.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(fontSize: 13, color: AppTheme.textSecondary),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

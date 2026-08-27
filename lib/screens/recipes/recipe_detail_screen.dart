@@ -23,7 +23,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   late Recipe _recipe;
   bool _isFavorite = false;
   int _userId = 0;
-  int? _dbRecipeId; // ID after saving to backend
+  int? _dbRecipeId;
   List<String> _pantryIngredients = [];
 
   @override
@@ -82,7 +82,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     final missing = _recipe.ingredients.where((ing) => !_isInPantry(ing)).toList();
 
     if (missing.isEmpty) {
-      _showSnack('All ingredients are already in your Pantry! 🎉', AppTheme.successColor);
+      _showSnack('All ingredients are already in your Pantry', AppTheme.primary);
       return;
     }
 
@@ -125,12 +125,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Added $addedCount missing ingredient${addedCount != 1 ? 's' : ''} to Shopping List! 🛒',
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, color: Colors.white),
+            'Added $addedCount missing item${addedCount != 1 ? 's' : ''} to Shopping List',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
           ),
-          backgroundColor: const Color(0xFFE65100),
+          backgroundColor: AppTheme.textPrimary,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
           action: SnackBarAction(
             label: 'View List',
             textColor: Colors.white,
@@ -145,15 +145,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         ),
       );
     } else {
-      _showSnack('All missing ingredients are already in your Shopping List!', Colors.orange);
+      _showSnack('Missing ingredients are already in your Shopping List', AppTheme.textSecondary);
     }
   }
 
-  /// Save recipe to backend (first time), then toggle favorite
   Future<void> _toggleFavorite() async {
     try {
       if (_dbRecipeId == null) {
-        // Recipe not in DB yet — save it with is_favorite = true
         final newId = await ApiService.saveRecipe({
           'user_id':              _userId,
           'title':                _recipe.title,
@@ -179,23 +177,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         });
 
         if (newId != null) {
-          // Store the real DB id so future taps just toggle
           setState(() {
             _dbRecipeId = newId;
             _isFavorite = true;
           });
-          _showSnack('❤️ Added to favorites', AppTheme.primary);
+          _showSnack('Saved to favorites', AppTheme.primary);
         } else {
           _showSnack('Failed to save recipe', AppTheme.errorColor);
         }
         return;
       }
 
-      // Already in DB — just toggle favorite flag
       final newState = await ApiService.toggleFavorite(_dbRecipeId!);
       setState(() => _isFavorite = newState);
       _showSnack(
-        newState ? '❤️ Added to favorites' : 'Removed from favorites',
+        newState ? 'Saved to favorites' : 'Removed from favorites',
         newState ? AppTheme.primary : AppTheme.textSecondary,
       );
     } catch (e) {
@@ -207,11 +203,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg,
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+        content: Text(msg, style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -220,23 +215,25 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.surface,
       body: NestedScrollView(
         headerSliverBuilder: (ctx, inner) => [
           SliverAppBar(
-            expandedHeight: 220,
+            expandedHeight: 180,
             pinned: true,
-            backgroundColor: Colors.white,
+            backgroundColor: AppTheme.surface,
+            scrolledUnderElevation: 0,
             leading: Padding(
               padding: const EdgeInsets.all(8),
               child: GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(10),
+                    color: AppTheme.cardBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.divider),
                   ),
-                  child: const Icon(Icons.arrow_back_rounded,
-                      color: AppTheme.textPrimary, size: 20),
+                  child: const Icon(Icons.arrow_back_rounded, color: AppTheme.textPrimary, size: 18),
                 ),
               ),
             ),
@@ -246,17 +243,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                 child: GestureDetector(
                   onTap: _toggleFavorite,
                   child: Container(
-                    width: 36, height: 36,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(10),
+                      color: AppTheme.cardBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.divider),
                     ),
                     child: Icon(
-                      _isFavorite
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      color: _isFavorite ? Colors.red : AppTheme.textPrimary,
-                      size: 20,
+                      _isFavorite ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                      color: _isFavorite ? AppTheme.primary : AppTheme.textSecondary,
+                      size: 18,
                     ),
                   ),
                 ),
@@ -264,19 +261,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppTheme.primary.withValues(alpha: 0.15),
-                      AppTheme.primaryLight.withValues(alpha: 0.2)
-                    ],
-                  ),
-                ),
+                color: AppTheme.surface,
                 child: Center(
-                  child: Text(_recipe.imageEmoji ?? '🍲',
-                      style: const TextStyle(fontSize: 100)),
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: AppTheme.cardBg,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.divider),
+                      boxShadow: AppTheme.cardShadow,
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.restaurant_menu_rounded, color: AppTheme.primary, size: 32),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -285,7 +284,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         body: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -293,48 +292,59 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                          child: Text(_recipe.title,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineLarge)),
+                        child: Text(
+                          _recipe.title,
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(100),
+                          color: AppTheme.cardBg,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppTheme.divider),
                         ),
-                        child: Text(_recipe.cuisine,
-                            style: GoogleFonts.dmSans(
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            )),
+                        child: Text(
+                          _recipe.cuisine,
+                          style: GoogleFonts.inter(
+                            color: AppTheme.textSecondary,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 11,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(_recipe.description,
-                      style: Theme.of(context).textTheme.bodyMedium),
+                  Text(
+                    _recipe.description,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _MetaPill(icon: '⏱️',
-                            text: '${_recipe.cookingTimeMinutes} min'),
+                        _MetaPill(icon: Icons.schedule_rounded, text: '${_recipe.cookingTimeMinutes} min'),
                         const SizedBox(width: 8),
-                        _MetaPill(icon: '👥',
-                            text: '${_recipe.servings} servings'),
+                        _MetaPill(icon: Icons.people_outline_rounded, text: '${_recipe.servings} servings'),
                         const SizedBox(width: 8),
-                        _MetaPill(icon: '🌶️', text: _recipe.spiceLevel),
+                        _MetaPill(icon: Icons.local_fire_department_outlined, text: _recipe.spiceLevel),
                         const SizedBox(width: 8),
-                        _MetaPill(icon: '🔥',
-                            text: '${_recipe.nutrition.calories} kcal'),
+                        _MetaPill(icon: Icons.whatshot_outlined, text: '${_recipe.nutrition.calories} kcal'),
                         if (_recipe.dietType != null) ...[
                           const SizedBox(width: 8),
-                          _MetaPill(icon: '🥗', text: _recipe.dietType!),
+                          _MetaPill(icon: Icons.eco_outlined, text: _recipe.dietType!),
                         ],
                       ],
                     ),
@@ -345,8 +355,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                     labelColor: AppTheme.primary,
                     unselectedLabelColor: AppTheme.textSecondary,
                     indicatorColor: AppTheme.primary,
-                    labelStyle: GoogleFonts.dmSans(
-                        fontWeight: FontWeight.w700, fontSize: 14),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                    unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 13),
                     tabs: const [
                       Tab(text: 'Ingredients'),
                       Tab(text: 'Steps'),
@@ -373,8 +384,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   }
 
   Widget _buildIngredients() {
-    final inPantryCount =
-        _recipe.ingredients.where((i) => _isInPantry(i)).length;
+    final inPantryCount = _recipe.ingredients.where((i) => _isInPantry(i)).length;
     final missingCount = _recipe.ingredients.length - inPantryCount;
 
     return ListView(
@@ -384,15 +394,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: missingCount == 0
-                ? const Color(0xFFE8F5E9)
-                : const Color(0xFFFFF3E0),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: missingCount == 0
-                  ? AppTheme.primary.withValues(alpha: 0.3)
-                  : Colors.orange.withValues(alpha: 0.3),
-            ),
+            color: AppTheme.cardBg,
+            borderRadius: AppTheme.radius,
+            border: Border.all(color: AppTheme.divider),
+            boxShadow: AppTheme.cardShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,35 +405,29 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
               Row(
                 children: [
                   Icon(
-                    missingCount == 0
-                        ? Icons.check_circle_rounded
-                        : Icons.shopping_basket_rounded,
-                    color: missingCount == 0
-                        ? AppTheme.primary
-                        : const Color(0xFFE65100),
-                    size: 22,
+                    missingCount == 0 ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                    color: missingCount == 0 ? AppTheme.primary : AppTheme.textSecondary,
+                    size: 18,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       missingCount == 0
-                          ? 'All ingredients in your Pantry! 🎉'
+                          ? 'All ingredients in your Pantry'
                           : '$missingCount missing ingredient${missingCount != 1 ? 's' : ''} for this recipe',
-                      style: GoogleFonts.dmSans(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: missingCount == 0
-                            ? AppTheme.primary
-                            : const Color(0xFFE65100),
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 '$inPantryCount of ${_recipe.ingredients.length} items available in your Home Pantry.',
-                style: GoogleFonts.dmSans(
+                style: GoogleFonts.inter(
                   fontSize: 12,
                   color: AppTheme.textSecondary,
                 ),
@@ -439,29 +438,22 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: _addMissingIngredientsToShoppingList,
-                    icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
-                    label: const Text(
-                      'Add Missing Ingredients to Shopping List',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
+                    icon: const Icon(Icons.add_shopping_cart_rounded, size: 16),
+                    label: const Text('Add Missing to Shopping List'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE65100),
+                      backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
                     ),
                   ),
                 ),
               ],
             ],
           ),
-        ).animate().fadeIn(duration: 300.ms),
+        ).animate().fadeIn(duration: 200.ms),
         const SizedBox(height: 16),
-        // Ingredients list with In Pantry / Need to Buy badges
+        // Clean list of ingredients
         ..._recipe.ingredients.asMap().entries.map((entry) {
           final i = entry.key;
           final ing = entry.value;
@@ -471,19 +463,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              color: AppTheme.cardBg,
+              borderRadius: AppTheme.radius,
               border: Border.all(color: AppTheme.divider),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: 6,
+                  height: 6,
                   decoration: BoxDecoration(
-                    color: hasInPantry
-                        ? AppTheme.primary
-                        : Colors.orange.shade700,
+                    color: hasInPantry ? AppTheme.primary : AppTheme.textTertiary,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -491,52 +481,33 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                 Expanded(
                   child: Text(
                     ing,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
                       color: AppTheme.textPrimary,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: hasInPantry
-                        ? AppTheme.primary.withValues(alpha: 0.1)
-                        : Colors.orange.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppTheme.divider),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        hasInPantry
-                            ? Icons.check_circle_outline_rounded
-                            : Icons.shopping_cart_outlined,
-                        size: 13,
-                        color: hasInPantry
-                            ? AppTheme.primary
-                            : const Color(0xFFE65100),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        hasInPantry ? 'In Pantry' : 'Need to Buy',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: hasInPantry
-                              ? AppTheme.primary
-                              : const Color(0xFFE65100),
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    hasInPantry ? 'In Pantry' : 'Need to Buy',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: hasInPantry ? AppTheme.primary : AppTheme.textSecondary,
+                    ),
                   ),
                 ),
               ],
             ),
-          ).animate().fadeIn(delay: (i * 30).ms);
+          ).animate().fadeIn(delay: (i * 20).ms);
         }),
       ],
     );
@@ -547,38 +518,51 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
       padding: const EdgeInsets.all(20),
       itemCount: _recipe.steps.length,
       itemBuilder: (ctx, i) => Container(
-        margin: const EdgeInsets.only(bottom: 16),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.cardBg,
+          borderRadius: AppTheme.radius,
+          border: Border.all(color: AppTheme.divider),
+          boxShadow: AppTheme.cardShadow,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 36, height: 36,
-              decoration: const BoxDecoration(
-                  color: AppTheme.primary, shape: BoxShape.circle),
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppTheme.divider),
+              ),
               child: Center(
-                child: Text('${i + 1}',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14)),
+                child: Text(
+                  '${i + 1}',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppTheme.divider),
+              child: Text(
+                _recipe.steps[i],
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: AppTheme.textPrimary,
+                  height: 1.5,
                 ),
-                child: Text(_recipe.steps[i],
-                    style: Theme.of(ctx).textTheme.bodyLarge),
               ),
             ),
           ],
         ),
-      ).animate().fadeIn(delay: (i * 60).ms),
+      ).animate().fadeIn(delay: (i * 30).ms),
     );
   }
 
@@ -590,52 +574,50 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(28),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1B5E20), Color(0xFF388E3C)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
+              color: AppTheme.cardBg,
+              borderRadius: AppTheme.radius,
+              border: Border.all(color: AppTheme.divider),
+              boxShadow: AppTheme.cardShadow,
             ),
             child: Column(
               children: [
-                Text('${n.calories}',
-                    style: GoogleFonts.playfairDisplay(
-                        fontSize: 64,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white)),
-                Text('Calories per serving',
-                    style: GoogleFonts.dmSans(
-                        color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
+                Text(
+                  '${n.calories}',
+                  style: GoogleFonts.inter(
+                    fontSize: 48,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                    letterSpacing: -1,
+                  ),
+                ),
+                Text(
+                  'Calories per serving',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
           ).animate().fadeIn(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _NutritionCard(
-                  label: 'Protein', value: '${n.protein}g',
-                  color: const Color(0xFFE3F2FD))),
+              Expanded(child: _NutritionCard(label: 'Protein', value: '${n.protein}g')),
               const SizedBox(width: 12),
-              Expanded(child: _NutritionCard(
-                  label: 'Carbs', value: '${n.carbs}g',
-                  color: const Color(0xFFFFF3E0))),
+              Expanded(child: _NutritionCard(label: 'Carbs', value: '${n.carbs}g')),
             ],
           ).animate().fadeIn(delay: 100.ms),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _NutritionCard(
-                  label: 'Fat', value: '${n.fat}g',
-                  color: const Color(0xFFFCE4EC))),
+              Expanded(child: _NutritionCard(label: 'Fat', value: '${n.fat}g')),
               const SizedBox(width: 12),
-              Expanded(child: _NutritionCard(
-                  label: 'Fiber', value: '${n.fiber}g',
-                  color: const Color(0xFFE8F5E9))),
+              Expanded(child: _NutritionCard(label: 'Fiber', value: '${n.fiber}g')),
             ],
-          ).animate().fadeIn(delay: 200.ms),
+          ).animate().fadeIn(delay: 150.ms),
         ],
       ),
     );
@@ -643,7 +625,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
 }
 
 class _MetaPill extends StatelessWidget {
-  final String icon, text;
+  final IconData icon;
+  final String text;
   const _MetaPill({required this.icon, required this.text});
 
   @override
@@ -651,40 +634,61 @@ class _MetaPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(100),
+        color: AppTheme.cardBg,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppTheme.divider),
       ),
-      child: Text('$icon $text',
-          style: GoogleFonts.dmSans(
-              fontSize: 12, fontWeight: FontWeight.w500)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppTheme.textSecondary),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _NutritionCard extends StatelessWidget {
   final String label, value;
-  final Color color;
-  const _NutritionCard(
-      {required this.label, required this.value, required this.color});
+  const _NutritionCard({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-          color: color, borderRadius: BorderRadius.circular(16)),
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
+        border: Border.all(color: AppTheme.divider),
+        boxShadow: AppTheme.cardShadow,
+      ),
       child: Column(
         children: [
-          Text(value,
-              style: GoogleFonts.dmSans(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary)),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(label,
-              style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppTheme.textSecondary)),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: AppTheme.textSecondary,
+            ),
+          ),
         ],
       ),
     );

@@ -41,7 +41,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
           _items.addAll(decoded.map((m) => ShoppingItem.fromJson(m)));
         } catch (_) {}
       } else {
-        // Helpful initial demo items
         _items.addAll([
           ShoppingItem(id: '1', name: 'Tomato', isCompleted: false),
           ShoppingItem(id: '2', name: 'Onion', isCompleted: false),
@@ -102,6 +101,8 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Deleted "${removed.name}" from shopping list'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
         action: SnackBarAction(
           label: 'Undo',
           textColor: Colors.white,
@@ -124,9 +125,15 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Clear Completed Items?'),
-        content: Text('Remove $completedCount purchased items from your list?'),
+        shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
+        title: Text(
+          'Clear Completed Items?',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
+        content: Text(
+          'Remove $completedCount purchased items from your list?',
+          style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -140,7 +147,10 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
               _saveItems();
               Navigator.pop(ctx);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             child: const Text('Clear', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -154,14 +164,14 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     final completedCount = _items.where((i) => i.isCompleted).length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FBF9),
+      backgroundColor: AppTheme.surface,
       appBar: AppBar(
-        title: const Text('Shopping List & Notes'),
+        title: const Text('Shopping List'),
         actions: [
           if (completedCount > 0)
             IconButton(
-              icon: const Icon(Icons.cleaning_services_rounded),
-              tooltip: 'Clear completed items',
+              icon: const Icon(Icons.cleaning_services_outlined, size: 20),
+              tooltip: 'Clear completed',
               onPressed: _clearCompleted,
             ),
         ],
@@ -172,7 +182,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
               children: [
                 _buildHeaderCard(totalCount, completedCount),
                 _buildAddInput(),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Expanded(
                   child: _items.isEmpty ? _buildEmptyState() : _buildList(),
                 ),
@@ -182,116 +192,121 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   }
 
   Widget _buildHeaderCard(int total, int completed) {
+    final progress = total > 0 ? completed / total : 0.0;
+
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFE65100), Color(0xFFFF9800)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.orange.withValues(alpha: 0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: AppTheme.cardBg,
+        borderRadius: AppTheme.radius,
+        border: Border.all(color: AppTheme.divider),
+        boxShadow: AppTheme.cardShadow,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Center(
-              child: Text('📝', style: TextStyle(fontSize: 26)),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Ingredients to Buy',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.divider),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  total == 0
-                      ? 'No items on your list'
-                      : '$completed of $total items purchased • Tap checkbox to cross off',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
+                child: const Center(
+                  child: Icon(Icons.checklist_rounded, color: AppTheme.primary, size: 20),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$completed of $total Items Checked',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Check off items as you buy them',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+          if (total > 0) ...[
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: AppTheme.surface,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                minHeight: 4,
+              ),
+            ),
+          ],
         ],
       ),
-    ).animate().fadeIn().slideY(begin: -0.1);
+    );
   }
 
   Widget _buildAddInput() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          color: AppTheme.cardBg,
+          borderRadius: AppTheme.radius,
           border: Border.all(color: AppTheme.divider),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: AppTheme.cardShadow,
         ),
         child: Row(
           children: [
             const Padding(
-              padding: EdgeInsets.only(left: 16, right: 8),
-              child: Icon(Icons.playlist_add_rounded, color: Color(0xFFE65100), size: 24),
+              padding: EdgeInsets.only(left: 14, right: 8),
+              child: Icon(Icons.add_rounded, color: AppTheme.textSecondary, size: 18),
             ),
             Expanded(
               child: TextField(
                 controller: _textController,
-                style: GoogleFonts.dmSans(fontSize: 14, color: AppTheme.textPrimary),
+                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textPrimary),
                 decoration: InputDecoration(
-                  hintText: 'Add an ingredient to buy (e.g. Tomato, Milk)...',
-                  hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppTheme.textSecondary),
+                  hintText: 'Add an item to buy...',
+                  hintStyle: GoogleFonts.inter(color: AppTheme.textTertiary, fontSize: 13),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onSubmitted: _addItem,
+                onSubmitted: (val) => _addItem(val),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: ElevatedButton(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton(
                 onPressed: () => _addItem(_textController.text),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE65100),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
+                child: Text(
+                  'Add',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
-                child: Text('Add', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 13)),
               ),
             ),
           ],
@@ -302,7 +317,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   Widget _buildList() {
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 80),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       itemCount: _items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
@@ -310,85 +325,88 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
         return Container(
           decoration: BoxDecoration(
-            color: item.isCompleted ? const Color(0xFFFAFAFA) : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: item.isCompleted
-                  ? Colors.grey.shade300
-                  : AppTheme.divider,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
+            color: AppTheme.cardBg,
+            borderRadius: AppTheme.radius,
+            border: Border.all(color: AppTheme.divider),
+            boxShadow: AppTheme.cardShadow,
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             leading: Checkbox(
               value: item.isCompleted,
-              activeColor: AppTheme.successColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+              activeColor: AppTheme.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               onChanged: (_) => _toggleItem(index),
             ),
             title: Text(
               item.name,
-              style: GoogleFonts.dmSans(
-                fontSize: 16,
-                fontWeight: item.isCompleted ? FontWeight.w500 : FontWeight.w600,
-                color: item.isCompleted ? Colors.grey.shade600 : AppTheme.textPrimary,
-                // Red Strikethrough line across the ingredient name when checked
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: item.isCompleted ? FontWeight.w400 : FontWeight.w500,
+                color: item.isCompleted ? AppTheme.textSecondary : AppTheme.textPrimary,
                 decoration: item.isCompleted ? TextDecoration.lineThrough : TextDecoration.none,
                 decorationColor: Colors.red,
-                decorationThickness: 2.5,
+                decorationThickness: 2.0,
               ),
             ),
+            subtitle: item.isCompleted
+                ? Text(
+                    'Purchased ✓',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  )
+                : null,
             trailing: IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.textTertiary),
               tooltip: 'Delete',
               onPressed: () => _deleteItem(index),
             ),
             onTap: () => _toggleItem(index),
           ),
-        ).animate().fadeIn(duration: 150.ms);
+        ).animate().fadeIn(delay: (index * 20).ms);
       },
     );
   }
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppTheme.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.divider),
+              ),
+              child: const Center(
+                child: Icon(Icons.checklist_rounded, color: AppTheme.textSecondary, size: 26),
+              ),
             ),
-            child: const Center(
-              child: Text('🛒', style: TextStyle(fontSize: 38)),
+            const SizedBox(height: 16),
+            Text(
+              'Shopping List is Empty',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Your shopping list is empty',
-            style: GoogleFonts.dmSans(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
+            const SizedBox(height: 6),
+            Text(
+              'Add items you need to buy or add missing recipe ingredients directly from any recipe.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Add the ingredients you need to buy at the store.\nChecked items will show with a red strikethrough.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(fontSize: 13, color: AppTheme.textSecondary),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

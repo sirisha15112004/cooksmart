@@ -38,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.surface,
       body: _currentIndex == 0
           ? _buildHomePage()
           : _currentIndex == 1
@@ -52,28 +53,35 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHomePage() {
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 24),
             _buildHeader(),
+            const SizedBox(height: 24),
+            _buildHeroCard(),
             const SizedBox(height: 32),
-            _buildBanner(),
-            const SizedBox(height: 32),
-            Text("What's in your kitchen?",
-                    style: Theme.of(context).textTheme.headlineMedium)
-                .animate()
-                .fadeIn(delay: 200.ms),
-            const SizedBox(height: 6),
-            Text('Add ingredients and we\'ll suggest recipes',
-                    style: Theme.of(context).textTheme.bodyMedium)
-                .animate()
-                .fadeIn(delay: 300.ms),
-            const SizedBox(height: 20),
+            Text(
+              "What's in your kitchen?",
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.3,
+              ),
+            ).animate().fadeIn(delay: 150.ms),
+            const SizedBox(height: 4),
+            Text(
+              'Add your ingredients to generate personalized recipes',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppTheme.textSecondary,
+              ),
+            ).animate().fadeIn(delay: 200.ms),
+            const SizedBox(height: 16),
             _buildIngredientOptions(),
             const SizedBox(height: 32),
-            _buildQuickStats(),
+            _buildQuickAccessSection(),
             const SizedBox(height: 24),
           ],
         ),
@@ -88,29 +96,43 @@ class _HomeScreenState extends State<HomeScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Good ${_getGreeting()}! 👋',
-                style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              'Good ${_getGreeting()}',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: AppTheme.textSecondary,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text(_userName.split(' ').first,
-                style: Theme.of(context).textTheme.displayMedium),
+            Text(
+              _userName.split(' ').first,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.5,
+              ),
+            ),
           ],
         ),
         GestureDetector(
           onTap: () => setState(() => _currentIndex = 3),
           child: Container(
-            width: 48,
-            height: 48,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+              color: AppTheme.cardBg,
+              borderRadius: AppTheme.radius,
+              border: Border.all(color: AppTheme.divider),
+              boxShadow: AppTheme.cardShadow,
             ),
             child: Center(
               child: Text(
                 _userName.isNotEmpty ? _userName[0].toUpperCase() : 'C',
-                style: GoogleFonts.dmSans(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
                   color: AppTheme.primary,
                 ),
               ),
@@ -118,273 +140,264 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
-    ).animate().fadeIn().slideY(begin: -0.2);
+    ).animate().fadeIn();
   }
 
-  Widget _buildBanner() {
+  Widget _buildHeroCard() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1B5E20), Color(0xFF388E3C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('KitchenMate\nRecipe Finder',
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      height: 1.3,
-                    )),
-                const SizedBox(height: 8),
-                Text('Scan or type ingredients\nto discover amazing recipes',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.8),
-                    )),
-                const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const EnterIngredientsScreen())),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text('Get Started →',
-                        style: GoogleFonts.dmSans(
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        )),
-                  ),
-                ),
-              ],
-            ),
+        color: AppTheme.primary,
+        borderRadius: AppTheme.radius,
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primary.withValues(alpha: 0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-          const Text('🍽️', style: TextStyle(fontSize: 72)),
         ],
       ),
-    ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.2);
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'KitchenMate',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Smart Recipe Assistant',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Upload a photo or enter ingredients to discover balanced dishes tailored to your pantry.',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.8),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EnterIngredientsScreen()),
+            ),
+            icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+            label: const Text('Get Started'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppTheme.textPrimary,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: AppTheme.radius),
+              elevation: 0,
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 100.ms);
   }
 
   Widget _buildIngredientOptions() {
     return Row(
       children: [
+        // Enter Ingredients Card
         Expanded(
           child: _OptionCard(
-            emoji: '✏️',
-            title: 'Enter\nIngredients',
+            icon: Icons.edit_note_rounded,
+            title: 'Enter Ingredients',
             subtitle: 'Type manually',
-            color: const Color(0xFFE8F5E9),
-            borderColor: AppTheme.primary.withValues(alpha: 0.3),
             onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const EnterIngredientsScreen())),
+              context,
+              MaterialPageRoute(builder: (_) => const EnterIngredientsScreen()),
+            ),
           ),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 12),
+        // Scan Ingredients Card
         Expanded(
           child: _OptionCard(
-            emoji: '📷',
-            title: 'Scan\nIngredients',
+            icon: Icons.image_outlined,
+            title: 'Scan Ingredients',
             subtitle: 'Upload photo',
-            color: const Color(0xFFFFF3E0),
-            borderColor: AppTheme.accent.withValues(alpha: 0.4),
             onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const ScanIngredientsScreen())),
+              context,
+              MaterialPageRoute(builder: (_) => const ScanIngredientsScreen()),
+            ),
           ),
         ),
       ],
-    ).animate().fadeIn(delay: 350.ms);
+    ).animate().fadeIn(delay: 250.ms);
   }
 
-  Widget _buildQuickStats() {
+  Widget _buildQuickAccessSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Quick Access', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          'Quick Access',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+            letterSpacing: -0.2,
+          ),
+        ),
         const SizedBox(height: 14),
         // Row 1: Pantry & Shopping List
         Row(
           children: [
             Expanded(
-              child: GestureDetector(
+              child: _QuickActionCard(
+                icon: Icons.inventory_2_outlined,
+                title: 'Pantry',
+                subtitle: 'Items at home',
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const PantryScreen()),
-                ),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                        color: AppTheme.primary.withValues(alpha: 0.25)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Text('🥫', style: TextStyle(fontSize: 24)),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Pantry',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                            Text(
-                              'Items at home',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: GestureDetector(
+              child: _QuickActionCard(
+                icon: Icons.checklist_rounded,
+                title: 'Shopping List',
+                subtitle: 'Items to buy',
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ShoppingListScreen()),
-                ),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3E0),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                        color: Colors.orange.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Text('📝', style: TextStyle(fontSize: 24)),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Shopping List',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                            Text(
-                              'Items to buy',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        // Row 2: Favorites, Meal Plan, Profile
+        // Row 2: Favorites, Meal Plan, Profile in clean uniform white cards
         Row(
           children: [
-            _StatCard(
-              icon: Icons.favorite_rounded,
-              label: 'Favorites',
-              color: const Color(0xFFFFEBEE),
-              iconColor: const Color(0xFFEF5350),
-              onTap: () => setState(() => _currentIndex = 1),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.bookmark_outline_rounded,
+                title: 'Favorites',
+                subtitle: 'Saved dishes',
+                onTap: () => setState(() => _currentIndex = 1),
+              ),
             ),
             const SizedBox(width: 12),
-            _StatCard(
-              icon: Icons.calendar_month_rounded,
-              label: 'Meal Plan',
-              color: const Color(0xFFE3F2FD),
-              iconColor: const Color(0xFF1E88E5),
-              onTap: () => setState(() => _currentIndex = 2),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.calendar_today_outlined,
+                title: 'Meal Plan',
+                subtitle: 'Weekly schedule',
+                onTap: () => setState(() => _currentIndex = 2),
+              ),
             ),
             const SizedBox(width: 12),
-            _StatCard(
-              icon: Icons.person_rounded,
-              label: 'Profile',
-              color: const Color(0xFFF3E5F5),
-              iconColor: const Color(0xFF8E24AA),
-              onTap: () => setState(() => _currentIndex = 3),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.person_outline_rounded,
+                title: 'Profile',
+                subtitle: 'Account info',
+                onTap: () => setState(() => _currentIndex = 3),
+              ),
             ),
           ],
         ),
       ],
-    ).animate().fadeIn(delay: 450.ms);
+    ).animate().fadeIn(delay: 350.ms);
   }
 
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          )
-        ],
+        color: AppTheme.cardBg,
+        border: const Border(top: BorderSide(color: AppTheme.divider, width: 1)),
       ),
       child: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.cardBg,
         selectedItemColor: AppTheme.primary,
-        unselectedItemColor: AppTheme.textSecondary,
-        selectedLabelStyle:
-            GoogleFonts.dmSans(fontWeight: FontWeight.w600, fontSize: 11),
-        unselectedLabelStyle: GoogleFonts.dmSans(fontSize: 11),
+        unselectedItemColor: AppTheme.textTertiary,
+        selectedLabelStyle: GoogleFonts.inter(
+          fontWeight: FontWeight.w600,
+          fontSize: 11,
+        ),
+        unselectedLabelStyle: GoogleFonts.inter(
+          fontWeight: FontWeight.w500,
+          fontSize: 11,
+        ),
         elevation: 0,
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded), label: 'Home'),
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.home_outlined, size: 22),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.home_rounded, size: 22),
+            ),
+            label: 'Home',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_rounded), label: 'Favorites'),
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.bookmark_outline_rounded, size: 22),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.bookmark_rounded, size: 22),
+            ),
+            label: 'Favorites',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month_rounded), label: 'Planner'),
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.calendar_today_outlined, size: 20),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.calendar_today_rounded, size: 20),
+            ),
+            label: 'Planner',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded), label: 'Profile'),
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.person_outline_rounded, size: 22),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 3),
+              child: Icon(Icons.person_rounded, size: 22),
+            ),
+            label: 'Profile',
+          ),
         ],
       ),
     );
@@ -399,16 +412,14 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _OptionCard extends StatelessWidget {
-  final String emoji, title, subtitle;
-  final Color color, borderColor;
+  final IconData icon;
+  final String title, subtitle;
   final VoidCallback onTap;
 
   const _OptionCard({
-    required this.emoji,
+    required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
-    required this.borderColor,
     required this.onTap,
   });
 
@@ -419,28 +430,44 @@ class _OptionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: borderColor),
+          color: AppTheme.cardBg,
+          borderRadius: AppTheme.radius,
+          border: Border.all(color: AppTheme.divider),
+          boxShadow: AppTheme.cardShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 32)),
-            const SizedBox(height: 10),
-            Text(title,
-                style: GoogleFonts.dmSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
-                  height: 1.3,
-                )),
-            const SizedBox(height: 4),
-            Text(subtitle,
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary,
-                )),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.divider),
+              ),
+              child: Center(
+                child: Icon(icon, color: AppTheme.primary, size: 20),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+              ),
+            ),
           ],
         ),
       ),
@@ -448,43 +475,57 @@ class _OptionCard extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _QuickActionCard extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final Color color, iconColor;
+  final String title, subtitle;
   final VoidCallback onTap;
 
-  const _StatCard({
+  const _QuickActionCard({
     required this.icon,
-    required this.label,
-    required this.color,
-    required this.iconColor,
+    required this.title,
+    required this.subtitle,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: iconColor, size: 26),
-              const SizedBox(height: 6),
-              Text(label,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                  )),
-            ],
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppTheme.cardBg,
+          borderRadius: AppTheme.radius,
+          border: Border.all(color: AppTheme.divider),
+          boxShadow: AppTheme.cardShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppTheme.primary, size: 20),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.1,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );
